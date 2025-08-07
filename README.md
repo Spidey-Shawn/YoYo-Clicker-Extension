@@ -29,12 +29,8 @@ For Chrome/Edge:
 
 For Firefox:
 
-1. Open Firefox Developer Tools:
-- Type about:debugging in the address bar
-- OR press Ctrl+Shift+Alt+I (Windows/Linux) or Cmd+Shift+Alt+I (Mac)
-2. Enable Developer Mode:
-- Click "This Firefox" in the left sidebar
-- Click "Load Temporary Add-on..."
+1. Open Firefox and go to `about:debugging#/runtime/this-firefox`
+2. Click "Load Temporary Add-on..."
 3. Load Your Extension:
 - Navigate to your YoYo-Clicker-Extension folder
 - Select the manifest.json file
