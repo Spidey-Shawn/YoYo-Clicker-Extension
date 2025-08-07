@@ -18,6 +18,8 @@ class VideoPointsTracker {
     this.lastEventId = null; // Track last event to prevent duplicates
     this.addEffectCount = 0; // Track add effect position in sequence
     this.minusEffectCount = 0; // Track minus effect position in sequence
+    this.baseScale = 1.0; // User's manually set scale
+    this.currentZoomLevel = this.detectZoomLevel(); // Current page zoom
     this.init();
   }
 
@@ -25,6 +27,7 @@ class VideoPointsTracker {
     this.detectVideo();
     this.setupEventListeners();
     this.setupFullscreenListeners();
+    this.setupZoomListeners();
     this.checkExtensionState();
   }
 
@@ -39,6 +42,26 @@ class VideoPointsTracker {
     console.log('YoYo Clicker: Extension loaded but hidden. Press Ctrl+Y to show.');
   }
 
+  detectZoomLevel() {
+    // Use visual viewport for more accurate zoom detection
+    if (window.visualViewport) {
+      const zoom = window.visualViewport.scale || 1;
+      console.log(`YoYo Clicker: Detected zoom level (visual viewport): ${zoom}`);
+      return zoom;
+    }
+    
+    // Fallback: Use window dimensions ratio
+    const zoom = window.outerWidth / window.innerWidth;
+    if (zoom > 0.3 && zoom < 5) { // Reasonable zoom range
+      console.log(`YoYo Clicker: Detected zoom level (window ratio): ${zoom}`);
+      return zoom;
+    }
+    
+    // Final fallback
+    console.log(`YoYo Clicker: Using default zoom level: 1.0`);
+    return 1.0;
+  }
+  
   setAutoBackgroundMode() {
     const now = new Date();
     const hour = now.getHours();
@@ -92,7 +115,8 @@ class VideoPointsTracker {
     document.addEventListener('keydown', (e) => this.handleKeydown(e));
     document.addEventListener('wheel', (e) => this.handleWheel(e), { passive: false });
     
-    // Single comprehensive event handler to avoid duplicates
+    // More responsive event handlers - use both pointer and mouse events for better sensitivity
+    document.addEventListener('pointerdown', (e) => this.handleAllMouseEvents(e, 'pointerdown'));
     document.addEventListener('mousedown', (e) => this.handleAllMouseEvents(e, 'mousedown'));
     document.addEventListener('contextmenu', (e) => this.handleAllMouseEvents(e, 'contextmenu'));
     document.addEventListener('auxclick', (e) => this.handleAllMouseEvents(e, 'auxclick'));
@@ -139,6 +163,55 @@ class VideoPointsTracker {
         this.handleFullscreenChange();
       }
     }, 1000); // Check every second
+  }
+
+  setupZoomListeners() {
+    // Listen for resize events which can indicate zoom changes
+    window.addEventListener('resize', () => this.handleZoomChange());
+    
+    // Listen for visual viewport changes (better zoom detection)
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', () => this.handleZoomChange());
+    }
+    
+    // Polling method as backup for zoom detection
+    this.startZoomPolling();
+  }
+
+  startZoomPolling() {
+    setInterval(() => {
+      const newZoomLevel = this.detectZoomLevel();
+      
+      if (Math.abs(newZoomLevel - this.currentZoomLevel) > 0.05) { // 5% tolerance
+        console.log(`YoYo Clicker: Zoom change detected: ${this.currentZoomLevel} → ${newZoomLevel}`);
+        this.handleZoomLevelChange(newZoomLevel);
+      }
+    }, 500); // Check every 500ms
+  }
+
+  handleZoomChange() {
+    // Debounce zoom change detection
+    clearTimeout(this.zoomChangeTimeout);
+    this.zoomChangeTimeout = setTimeout(() => {
+      const newZoomLevel = this.detectZoomLevel();
+      
+      if (Math.abs(newZoomLevel - this.currentZoomLevel) > 0.05) {
+        console.log(`YoYo Clicker: Zoom change detected via event: ${this.currentZoomLevel} → ${newZoomLevel}`);
+        this.handleZoomLevelChange(newZoomLevel);
+      }
+    }, 100);
+  }
+
+  handleZoomLevelChange(newZoomLevel) {
+    // Store the current position and old zoom before changing
+    const currentPosition = this.getCurrentPosition();
+    const oldZoom = this.currentZoomLevel;
+    
+    // Update the zoom level
+    this.currentZoomLevel = newZoomLevel;
+    
+    // Update scale and position
+    this.updateScaleAndPosition(currentPosition, oldZoom, newZoomLevel);
   }
 
   detectFullscreenState() {
@@ -230,10 +303,38 @@ class VideoPointsTracker {
       }
     }
     
-    // Also handle feedback elements
+    // Update fullscreen state and handle existing feedback elements
     this.isFullscreen = isFullscreen;
+    this.moveFeedbackElementsToCorrectContainer();
   }
 
+  moveFeedbackElementsToCorrectContainer() {
+    // Move any existing feedback elements to the correct container
+    const feedbackElements = document.querySelectorAll('.points-feedback');
+    let targetContainer = document.body;
+    
+    if (this.isFullscreen) {
+      const fullscreenEl = document.fullscreenElement || document.webkitFullscreenElement;
+      if (fullscreenEl && fullscreenEl !== document.body) {
+        targetContainer = fullscreenEl;
+      }
+    }
+    
+    feedbackElements.forEach(element => {
+      if (element.parentNode !== targetContainer) {
+        console.log('YoYo Clicker: Moving existing feedback element to correct container');
+        targetContainer.appendChild(element);
+        
+        // Update z-index for the moved element
+        if (this.isFullscreen) {
+          element.style.zIndex = '2147483647';
+          element.style.position = 'fixed';
+        } else {
+          element.style.zIndex = '10001';
+        }
+      }
+    });
+  }
 
   touchStartTime = 0;
   touchCount = 0;
@@ -311,18 +412,18 @@ class VideoPointsTracker {
     console.log(`EVENT: ${eventType}, button: ${e.button}, buttons: ${e.buttons}, detail: ${e.detail}, target:`, e.target.className);
     
     // Handle scale controls (works with or without video)
-    if (e.target.classList.contains('scale-decrease') && eventType === 'mousedown') {
+    if (e.target.classList.contains('scale-decrease') && (eventType === 'mousedown' || eventType === 'pointerdown')) {
       e.preventDefault();
       this.decreaseScale();
       return;
-    } else if (e.target.classList.contains('scale-increase') && eventType === 'mousedown') {
+    } else if (e.target.classList.contains('scale-increase') && (eventType === 'mousedown' || eventType === 'pointerdown')) {
       e.preventDefault();
       this.increaseScale();
       return;
     }
     
     // Handle reset button (works with or without video)
-    if (e.target.classList.contains('reset-button') && eventType === 'mousedown') {
+    if (e.target.classList.contains('reset-button') && (eventType === 'mousedown' || eventType === 'pointerdown')) {
       e.preventDefault();
       console.log('Reset button clicked');
       this.resetPoints();
@@ -330,7 +431,7 @@ class VideoPointsTracker {
     }
     
     // Handle close button (ALWAYS works, even without video)
-    if (e.target.classList.contains('close-button') && eventType === 'mousedown') {
+    if (e.target.classList.contains('close-button') && (eventType === 'mousedown' || eventType === 'pointerdown')) {
       e.preventDefault();
       console.log('Close button clicked');
       this.closeExtension();
@@ -338,7 +439,7 @@ class VideoPointsTracker {
     }
     
     // Handle menu button (works with or without video)
-    if (e.target.classList.contains('menu-button') && eventType === 'mousedown') {
+    if (e.target.classList.contains('menu-button') && (eventType === 'mousedown' || eventType === 'pointerdown')) {
       e.preventDefault();
       console.log('Menu button clicked');
       this.toggleMenu();
@@ -356,24 +457,24 @@ class VideoPointsTracker {
       // Create unique event ID to prevent duplicates
       const eventId = `${eventType}-${e.button}-${e.timeStamp}`;
       
-      // Check for duplicate events within 100ms
+      // Check for duplicate events within 30ms (much faster)
       if (this.lastEventId === eventId) {
         console.log('Duplicate event detected, ignoring');
         return;
       }
       this.lastEventId = eventId;
       
-      // Clear event ID after 100ms to allow new events
+      // Clear event ID after 30ms to allow new events
       setTimeout(() => {
         if (this.lastEventId === eventId) {
           this.lastEventId = null;
         }
-      }, 100);
+      }, 30);
       
       // RIGHT CLICK / TWO-FINGER TAP = MINUS POINT
       if (eventType === 'contextmenu' || 
           (eventType === 'auxclick' && e.button === 1) ||
-          (eventType === 'mousedown' && e.button === 2)) {
+          ((eventType === 'mousedown' || eventType === 'pointerdown') && e.button === 2)) {
         e.preventDefault();
         console.log(`Right-click/Two-finger tap detected via ${eventType} - subtracting point`);
         this.subtractPoint(eventId);
@@ -381,7 +482,7 @@ class VideoPointsTracker {
       }
       
       // LEFT CLICK / SINGLE-FINGER TAP = PLUS POINT
-      if (eventType === 'mousedown' && e.button === 0) {
+      if ((eventType === 'mousedown' || eventType === 'pointerdown') && e.button === 0) {
         e.preventDefault();
         console.log(`Left-click/Single-finger tap detected via ${eventType} - adding point`);
         this.addPoint(eventId);
@@ -428,15 +529,99 @@ class VideoPointsTracker {
 
 
   decreaseScale() {
-    this.scale = Math.max(0.5, this.scale - 0.1);
-    this.updateScale();
-    this.saveScale();
+    this.baseScale = Math.max(0.5, this.baseScale - 0.1);
+    this.updateScaleForZoom();
+    console.log('Base scale decreased to:', this.baseScale);
+    // No saveScale() - scale is not persisted
   }
 
   increaseScale() {
-    this.scale = Math.min(2.0, this.scale + 0.1);
+    this.baseScale = Math.min(2.0, this.baseScale + 0.1);
+    this.updateScaleForZoom();
+    console.log('Base scale increased to:', this.baseScale);
+    // No saveScale() - scale is not persisted
+  }
+
+  updateScaleForZoom() {
+    // Simple scale update without position adjustment (used for manual scale changes)
+    this.scale = this.baseScale * this.currentZoomLevel;
+    this.scale = Math.max(0.2, Math.min(this.scale, 4.0));
+    console.log(`YoYo Clicker: Scale updated - Base: ${this.baseScale}, Zoom: ${this.currentZoomLevel}, Final: ${this.scale}`);
     this.updateScale();
-    this.saveScale();
+  }
+
+  updateScaleAndPosition(oldPosition, oldZoom, newZoom) {
+    // Update scale first
+    this.scale = this.baseScale * newZoom;
+    this.scale = Math.max(0.2, Math.min(this.scale, 4.0));
+    this.updateScale();
+    
+    // Adjust position proportionally to zoom change if element exists
+    if (this.pointsDisplay && oldZoom > 0 && Math.abs(oldZoom - newZoom) > 0.01) {
+      this.adjustPositionForZoom(oldPosition, oldZoom, newZoom);
+    }
+    
+    console.log(`YoYo Clicker: Scale and position updated - Base: ${this.baseScale}, Zoom: ${newZoom}, Final: ${this.scale}`);
+  }
+
+  getCurrentPosition() {
+    if (!this.pointsDisplay) return { x: 30, y: 30 };
+    
+    let left, top;
+    
+    // Handle both left and right positioning
+    if (this.pointsDisplay.style.left && this.pointsDisplay.style.left !== 'auto') {
+      left = parseInt(this.pointsDisplay.style.left) || 0;
+    } else if (this.pointsDisplay.style.right && this.pointsDisplay.style.right !== 'auto') {
+      const right = parseInt(this.pointsDisplay.style.right) || 30;
+      const elementWidth = this.pointsDisplay.offsetWidth;
+      left = window.innerWidth - right - elementWidth;
+    } else {
+      left = 30; // Default fallback
+    }
+    
+    top = parseInt(this.pointsDisplay.style.top) || 30;
+    
+    return { x: left, y: top };
+  }
+
+  adjustPositionForZoom(oldPosition, oldZoom, newZoom) {
+    if (!this.pointsDisplay || oldZoom === newZoom) return;
+    
+    // Calculate the zoom ratio
+    const zoomRatio = newZoom / oldZoom;
+    
+    // Adjust position proportionally to maintain relative screen position
+    const newX = oldPosition.x * zoomRatio;
+    const newY = oldPosition.y * zoomRatio;
+    
+    // Apply bounds checking
+    const bounds = this.calculateBounds();
+    const clampedX = Math.max(bounds.minX, Math.min(newX, bounds.maxX));
+    const clampedY = Math.max(bounds.minY, Math.min(newY, bounds.maxY));
+    
+    // Apply the new position (always use left positioning for consistency)
+    this.pointsDisplay.style.left = clampedX + 'px';
+    this.pointsDisplay.style.top = clampedY + 'px';
+    this.pointsDisplay.style.right = 'auto'; // Clear right positioning
+    
+    console.log(`YoYo Clicker: Position adjusted for zoom - Old: (${oldPosition.x}, ${oldPosition.y}), New: (${clampedX.toFixed(1)}, ${clampedY.toFixed(1)}), Zoom ratio: ${zoomRatio.toFixed(2)}`);
+  }
+
+  calculateBounds() {
+    if (!this.pointsDisplay) return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+    
+    const unscaledWidth = this.pointsDisplay.offsetWidth;
+    const unscaledHeight = this.pointsDisplay.offsetHeight;
+    const effectiveWidth = unscaledWidth * this.scale;
+    const effectiveHeight = unscaledHeight * this.scale;
+    
+    return {
+      minX: 0,
+      maxX: window.innerWidth - effectiveWidth,
+      minY: 0,
+      maxY: window.innerHeight - effectiveHeight
+    };
   }
 
   updateScale() {
@@ -444,7 +629,8 @@ class VideoPointsTracker {
       this.pointsDisplay.style.transform = `scale(${this.scale})`;
       const scaleText = this.pointsDisplay.querySelector('.scale-text');
       if (scaleText) {
-        scaleText.textContent = `${Math.round(this.scale * 100)}%`;
+        // Show base scale in the UI, not the zoom-adjusted scale
+        scaleText.textContent = `${Math.round(this.baseScale * 100)}%`;
       }
     }
   }
@@ -481,8 +667,8 @@ class VideoPointsTracker {
 
   addPoint(eventId = null) {
     const now = Date.now();
-    // Prevent very rapid duplicates (within 150ms) for better Windows compatibility
-    if (now - this.lastAddTime < 150) {
+    // Prevent very rapid duplicates (within 50ms) for better responsiveness
+    if (now - this.lastAddTime < 50) {
       console.log('Rapid duplicate add action prevented - too soon after last add');
       return;
     }
@@ -499,8 +685,8 @@ class VideoPointsTracker {
 
   subtractPoint(eventId = null) {
     const now = Date.now();
-    // Prevent very rapid duplicates (within 150ms) for better Windows compatibility
-    if (now - this.lastSubtractTime < 150) {
+    // Prevent very rapid duplicates (within 50ms) for better responsiveness
+    if (now - this.lastSubtractTime < 50) {
       console.log('Rapid duplicate subtract action prevented - too soon after last subtract');
       return;
     }
@@ -548,8 +734,18 @@ class VideoPointsTracker {
     // Reset all counts when showing after being closed
     this.resetAllCounts();
     
+    // Reset to default scale
+    this.baseScale = 1.0;
+    this.updateScaleForZoom();
+    
     if (this.pointsDisplay) {
       this.pointsDisplay.style.display = 'block';
+      
+      // Reset to default position (top-right corner)
+      this.pointsDisplay.style.top = '30px';
+      this.pointsDisplay.style.right = '30px';
+      this.pointsDisplay.style.left = 'auto';
+      
       // Update display to show reset values
       this.updatePointsDisplay();
     }
@@ -561,7 +757,7 @@ class VideoPointsTracker {
     const url = window.location.hostname;
     chrome.storage.local.remove([`extension_closed_${url}`]);
     
-    console.log('YoYo Clicker extension shown with reset values');
+    console.log('YoYo Clicker extension shown with fresh default state (position: top-right, scale: 100%)');
   }
 
   toggleMenu() {
@@ -672,10 +868,11 @@ class VideoPointsTracker {
     this.pointsDisplay.id = 'video-points-display';
     this.pointsDisplay.className = 'points-display';
     
-    // Set initial position explicitly to avoid drag issues
+    // Always start at default position (top-right corner)
     this.pointsDisplay.style.top = '30px';
     this.pointsDisplay.style.right = '30px';
     this.pointsDisplay.style.left = 'auto';
+    console.log('YoYo Clicker: Extension positioned at default location (top-right)');
     this.pointsDisplay.innerHTML = `
       <div class="points-header draggable-header" id="draggable-header">
         <button class="menu-button" id="menu-button">☰</button>
@@ -836,13 +1033,30 @@ class VideoPointsTracker {
     feedbackElement.style.left = feedbackX + 'px';
     feedbackElement.style.top = feedbackY + 'px';
     
-    // Set higher z-index in fullscreen mode
+    // Set higher z-index in fullscreen mode and ensure visibility
     if (this.isFullscreen) {
       feedbackElement.style.zIndex = '2147483647'; // Maximum z-index for fullscreen
+      feedbackElement.style.position = 'fixed'; // Ensure fixed positioning in fullscreen
+      feedbackElement.style.pointerEvents = 'none'; // Prevent interference with video controls
+    } else {
+      feedbackElement.style.zIndex = '10001'; // Normal z-index for non-fullscreen
     }
     
-    // Add to page
-    document.body.appendChild(feedbackElement);
+    // Apply zoom-based scaling to feedback effects
+    const feedbackScale = this.currentZoomLevel;
+    feedbackElement.style.transform = `scale(${feedbackScale})`;
+    feedbackElement.style.transformOrigin = 'center center';
+    
+    // Add to the appropriate container (fullscreen element or body)
+    let targetContainer = document.body;
+    if (this.isFullscreen) {
+      const fullscreenEl = document.fullscreenElement || document.webkitFullscreenElement;
+      if (fullscreenEl && fullscreenEl !== document.body) {
+        targetContainer = fullscreenEl;
+        console.log('YoYo Clicker: Appending feedback to fullscreen element');
+      }
+    }
+    targetContainer.appendChild(feedbackElement);
     
     console.log(`Feedback "${text}" shown at position: ${Math.round(feedbackX)}, ${Math.round(feedbackY)}`);
     
@@ -850,7 +1064,7 @@ class VideoPointsTracker {
     const fadeStartTime = duration * 0.9;
     setTimeout(() => {
       feedbackElement.style.opacity = '0';
-      feedbackElement.style.transform = 'translateY(-20px) scale(0.8)';
+      feedbackElement.style.transform = `translateY(-20px) scale(${feedbackScale * 0.8})`;
     }, fadeStartTime);
     
     // Remove after the full duration
@@ -867,20 +1081,13 @@ class VideoPointsTracker {
       points: this.points,
       plusPoints: this.plusPoints,
       minusPoints: this.minusPoints,
-      scale: this.scale,
       lastUpdated: Date.now()
+      // Removed scale persistence - extension will always start at default scale
     };
     chrome.storage.local.set({ [`points_${url}`]: data });
   }
 
-  saveScale() {
-    const url = window.location.hostname;
-    chrome.storage.local.get([`points_${url}`], (result) => {
-      const data = result[`points_${url}`] || {};
-      data.scale = this.scale;
-      chrome.storage.local.set({ [`points_${url}`]: data });
-    });
-  }
+  // saveScale() removed - extension will always start at default scale
 
   saveBackgroundMode() {
     const url = window.location.hostname;
@@ -902,10 +1109,11 @@ class VideoPointsTracker {
       this.plusPoints = 0;
       this.minusPoints = 0;
       
-      // Restore scale setting
+      // Always start with default scale (1.0) - no persistence
+      this.baseScale = 1.0;
+      
+      // Check if user has manually set a background mode recently (within last hour)
       if (data && typeof data === 'object') {
-        this.scale = data.scale || 1.0;
-        // Check if user has manually set a background mode recently (within last hour)
         const manualModeTime = data.manualModeTime || 0;
         const oneHourAgo = Date.now() - (60 * 60 * 1000);
         
@@ -918,14 +1126,15 @@ class VideoPointsTracker {
           this.setAutoBackgroundMode();
         }
       } else {
-        this.scale = 1.0;
         this.setAutoBackgroundMode();
       }
       
+      // Update the final scale based on current zoom
+      this.updateScaleForZoom();
+      
       this.updatePointsDisplay();
-      this.updateScale();
       this.updateBackgroundMode();
-      console.log('YoYo Clicker: Points reset to zero, scale restored to', this.scale, 'background mode:', this.backgroundMode);
+      console.log('YoYo Clicker: Fresh startup - Points: 0, Base scale: 100%, Zoom level:', this.currentZoomLevel, 'Final scale:', this.scale, 'Background mode:', this.backgroundMode);
     });
   }
 
@@ -987,15 +1196,18 @@ class VideoPointsTracker {
       const effectiveWidth = unscaledWidth * this.scale;
       const effectiveHeight = unscaledHeight * this.scale;
       
-      // Account for transform origin (top right) - the window grows leftward when scaled
-      const originOffsetX = (effectiveWidth - unscaledWidth);
+      // With transform-origin: top left, scaling is much more predictable
+      // The visual size equals the effective size, and position matches DOM position
       
-      const maxX = window.innerWidth - unscaledWidth;
-      const maxY = window.innerHeight - effectiveHeight;
-      const minX = -originOffsetX; // Allow negative position to account for leftward growth
+      const minX = 0; // Can always go to left edge
+      const maxX = window.innerWidth - effectiveWidth; // Visual right edge constraint
+      const maxY = window.innerHeight - effectiveHeight; // Visual bottom edge constraint
       
       const clampedX = Math.max(minX, Math.min(newX, maxX));
       const clampedY = Math.max(0, Math.min(newY, maxY));
+      
+      // Debug logging (simplified for transform-origin: top left)
+      console.log(`DRAG: Scale=${this.scale.toFixed(2)}, Boundaries=[${minX}, ${maxX.toFixed(0)}], NewX=${newX.toFixed(0)}, ClampedX=${clampedX.toFixed(0)}`);
       
       // Apply position
       this.pointsDisplay.style.left = clampedX + 'px';
