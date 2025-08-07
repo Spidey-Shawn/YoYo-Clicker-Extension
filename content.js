@@ -18,6 +18,10 @@ class VideoPointsTracker {
     this.lastEventId = null; // Track last event to prevent duplicates
     this.addEffectCount = 0; // Track add effect position in sequence
     this.minusEffectCount = 0; // Track minus effect position in sequence
+    this.lastGestureTime = 0; // Track last gesture to prevent conflicts
+    this.lastGestureType = null; // Track last gesture type (add/subtract)
+    this.pendingGestures = []; // Track all gestures within conflict window
+    this.gestureProcessingTimeout = null; // Timeout for gesture processing
     this.baseScale = 1.0; // User's manually set scale
     this.currentZoomLevel = this.detectZoomLevel(); // Current page zoom
     this.init();
@@ -118,7 +122,7 @@ class VideoPointsTracker {
     // More responsive event handlers - use both pointer and mouse events for better sensitivity
     document.addEventListener('pointerdown', (e) => this.handleAllMouseEvents(e, 'pointerdown'));
     document.addEventListener('mousedown', (e) => this.handleAllMouseEvents(e, 'mousedown'));
-    document.addEventListener('contextmenu', (e) => this.handleAllMouseEvents(e, 'contextmenu'));
+    document.addEventListener('contextmenu', (e) => this.handleContextMenu(e));
     document.addEventListener('auxclick', (e) => this.handleAllMouseEvents(e, 'auxclick'));
     
     // Disable touch handlers to prevent duplicates
@@ -384,6 +388,23 @@ class VideoPointsTracker {
     return;
   }
 
+  handleContextMenu(e) {
+    // Check if the right-click is on the YoYo Clicker extension
+    if (this.isPointsArea(e.target) && !this.isDragHandle(e.target)) {
+      // Prevent the browser context menu from appearing
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('Context menu prevented on YoYo Clicker extension');
+      
+      // Handle the right-click as a subtract gesture
+      this.handleAllMouseEvents(e, 'contextmenu');
+      return false;
+    }
+    
+    // Allow normal context menu for other elements
+    return true;
+  }
+
   handleKeydown(e) {
     // Show extension with Ctrl+Y (works even without video)
     if (e.key === 'y' && e.ctrlKey) {
@@ -454,38 +475,38 @@ class VideoPointsTracker {
     
     // Handle points area (but not drag handle) - unified for mouse and trackpad
     if (this.isPointsArea(e.target) && !this.isDragHandle(e.target)) {
-      // Create unique event ID to prevent duplicates
-      const eventId = `${eventType}-${e.button}-${e.timeStamp}`;
+      // Create unique gesture ID based on time and action type, not event details
+      const now = Date.now();
+      const isRightClick = (eventType === 'contextmenu' || 
+                           (eventType === 'auxclick' && e.button === 1) ||
+                           ((eventType === 'mousedown' || eventType === 'pointerdown') && e.button === 2));
       
-      // Check for duplicate events within 30ms (much faster)
-      if (this.lastEventId === eventId) {
-        console.log('Duplicate event detected, ignoring');
+      const gestureType = isRightClick ? 'subtract' : 'add';
+      const gestureId = `${gestureType}-${now}`;
+      
+      // Windows-specific deduplication: longer timeout for right-click events
+      const dedupeTimeout = isRightClick ? 100 : 30;
+      
+      // Check if we've already processed this gesture type recently
+      const lastGestureKey = `last${gestureType.charAt(0).toUpperCase() + gestureType.slice(1)}Time`;
+      if (this[lastGestureKey] && (now - this[lastGestureKey]) < dedupeTimeout) {
+        console.log(`Duplicate ${gestureType} gesture detected within ${dedupeTimeout}ms, ignoring`);
         return;
       }
-      this.lastEventId = eventId;
-      
-      // Clear event ID after 30ms to allow new events
-      setTimeout(() => {
-        if (this.lastEventId === eventId) {
-          this.lastEventId = null;
-        }
-      }, 30);
       
       // RIGHT CLICK / TWO-FINGER TAP = MINUS POINT
-      if (eventType === 'contextmenu' || 
-          (eventType === 'auxclick' && e.button === 1) ||
-          ((eventType === 'mousedown' || eventType === 'pointerdown') && e.button === 2)) {
+      if (isRightClick) {
         e.preventDefault();
-        console.log(`Right-click/Two-finger tap detected via ${eventType} - subtracting point`);
-        this.subtractPoint(eventId);
+        console.log(`Right-click/Two-finger tap detected via ${eventType} (button: ${e.button})`);
+        this.queueGesture('subtract', gestureId);
         return;
       }
       
       // LEFT CLICK / SINGLE-FINGER TAP = PLUS POINT
       if ((eventType === 'mousedown' || eventType === 'pointerdown') && e.button === 0) {
         e.preventDefault();
-        console.log(`Left-click/Single-finger tap detected via ${eventType} - adding point`);
-        this.addPoint(eventId);
+        console.log(`Left-click/Single-finger tap detected via ${eventType}`);
+        this.queueGesture('add', gestureId);
         return;
       }
     }
@@ -494,6 +515,64 @@ class VideoPointsTracker {
   isDragHandle(element) {
     return element.classList.contains('draggable-header') || 
            element.closest('.draggable-header');
+  }
+
+  queueGesture(gestureType, gestureId) {
+    const now = Date.now();
+    
+    // Update the timing property for this gesture type
+    const lastGestureKey = `last${gestureType.charAt(0).toUpperCase() + gestureType.slice(1)}Time`;
+    this[lastGestureKey] = now;
+    
+    // Add gesture to pending queue
+    this.pendingGestures.push({
+      type: gestureType,
+      time: now,
+      gestureId: gestureId
+    });
+    
+    console.log(`Gesture queued: ${gestureType} (queue length: ${this.pendingGestures.length})`);
+    
+    // Clear any existing timeout
+    if (this.gestureProcessingTimeout) {
+      clearTimeout(this.gestureProcessingTimeout);
+    }
+    
+    // Process immediately for single gestures, with delay for conflicts
+    const processingDelay = this.pendingGestures.length === 1 ? 20 : 80;
+    this.gestureProcessingTimeout = setTimeout(() => {
+      this.processGestureQueue();
+    }, processingDelay);
+  }
+  
+  processGestureQueue() {
+    if (this.pendingGestures.length === 0) return;
+    
+    console.log(`Processing gesture queue with ${this.pendingGestures.length} gestures`);
+    
+    // Group gestures by type
+    const addGestures = this.pendingGestures.filter(g => g.type === 'add');
+    const subtractGestures = this.pendingGestures.filter(g => g.type === 'subtract');
+    
+    // If we have both types, it's a conflict - prioritize subtract (two-finger tap)
+    if (addGestures.length > 0 && subtractGestures.length > 0) {
+      console.log('Gesture conflict detected - executing only subtract');
+      this.subtractPoint(subtractGestures[0].gestureId);
+    }
+    // If only subtract gestures, execute one
+    else if (subtractGestures.length > 0) {
+      console.log(`Processing subtract gesture`);
+      this.subtractPoint(subtractGestures[0].gestureId);
+    }
+    // If only add gestures, execute one
+    else if (addGestures.length > 0) {
+      console.log(`Processing add gesture`);
+      this.addPoint(addGestures[0].gestureId);
+    }
+    
+    // Clear the queue
+    this.pendingGestures = [];
+    this.gestureProcessingTimeout = null;
   }
 
   handleGestureStart(e) {
@@ -665,40 +744,22 @@ class VideoPointsTracker {
            element.closest('.minus-section');
   }
 
-  addPoint(eventId = null) {
-    const now = Date.now();
-    // Prevent very rapid duplicates (within 50ms) for better responsiveness
-    if (now - this.lastAddTime < 50) {
-      console.log('Rapid duplicate add action prevented - too soon after last add');
-      return;
-    }
-    
-    this.lastAddTime = now;
-    
+  addPoint(gestureId = null) {
     this.points++;
     this.plusPoints++;
     this.updatePointsDisplay();
     this.showFeedback('+1', '#4CAF50');
     this.savePoints();
-    console.log('Point added - Total:', this.points, eventId ? `(Event: ${eventId})` : '');
+    console.log('Point added - Total:', this.points, gestureId ? `(Gesture: ${gestureId})` : '');
   }
 
-  subtractPoint(eventId = null) {
-    const now = Date.now();
-    // Prevent very rapid duplicates (within 50ms) for better responsiveness
-    if (now - this.lastSubtractTime < 50) {
-      console.log('Rapid duplicate subtract action prevented - too soon after last subtract');
-      return;
-    }
-    
-    this.lastSubtractTime = now;
-    
+  subtractPoint(gestureId = null) {
     this.points--;
     this.minusPoints++;
     this.updatePointsDisplay();
     this.showFeedback('-1', '#f44336');
     this.savePoints();
-    console.log('Point subtracted - Total:', this.points, eventId ? `(Event: ${eventId})` : '');
+    console.log('Point subtracted - Total:', this.points, gestureId ? `(Gesture: ${gestureId})` : '');
   }
 
   resetPoints() {
@@ -905,6 +966,14 @@ class VideoPointsTracker {
       </div>
     `;
     document.body.appendChild(this.pointsDisplay);
+
+    // Add context menu prevention directly to the element
+    this.pointsDisplay.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('Context menu blocked on points display');
+      return false;
+    });
 
     this.feedbackDisplay = document.createElement('div');
     this.feedbackDisplay.id = 'video-points-feedback';
