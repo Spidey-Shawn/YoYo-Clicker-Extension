@@ -20,10 +20,26 @@ A browser extension with a glassmorphism UI that allows you to track points whil
 
 ## Installation
 
+For Chrome/Edge:
+
 1. Open Chrome/Edge and go to `chrome://extensions/` / `edge://extensions/`
 2. Enable "Developer mode"
 3. Click "Load unpacked" and select the extension folder
 4. The extension will be active on all video sites
+
+For Firefox:
+
+1. Open Firefox Developer Tools:
+- Type about:debugging in the address bar
+- OR press Ctrl+Shift+Alt+I (Windows/Linux) or Cmd+Shift+Alt+I (Mac)
+2. Enable Developer Mode:
+- Click "This Firefox" in the left sidebar
+- Click "Load Temporary Add-on..."
+3. Load Your Extension:
+- Navigate to your YoYo-Clicker-Extension folder
+- Select the manifest.json file
+- Click "Open"
+
 
 ## Compatibility
 
