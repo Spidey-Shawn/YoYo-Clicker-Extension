@@ -29,8 +29,7 @@ A browser extension with a glassmorphism UI that allows you to track points whil
 
 Works with all major video platforms:
 - YouTube
-- Netflix
-- Vimeo
+- Bilibili
 - Twitch
 - HTML5 video players
 
