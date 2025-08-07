@@ -20,7 +20,7 @@ A browser extension with a glassmorphism UI that allows you to track points whil
 
 ## Installation
 
-1. Open Chrome/Edge and go to `chrome://extensions/`
+1. Open Chrome/Edge and go to `chrome://extensions/` / `edge://extensions/`
 2. Enable "Developer mode"
 3. Click "Load unpacked" and select the extension folder
 4. The extension will be active on all video sites
