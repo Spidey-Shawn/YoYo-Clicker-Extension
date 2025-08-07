@@ -48,8 +48,7 @@ Works with all major video platforms:
 ## Use Cases
 
 Perfect for:
-- Rating videos while watching
-- Tracking good/bad moments
+- Rating YoYo videos while watching
 - Scoring performances
 - Educational feedback
 - Gaming commentary
