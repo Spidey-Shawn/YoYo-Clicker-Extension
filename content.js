@@ -891,7 +891,7 @@ class VideoPointsTracker {
 
 
   showAbout() {
-    const about = 'YoYo Clicker v1.0\nDesigned by Shawn Ren';
+    const about = 'YoYo Clicker v1.2\nDesigned by Shawn Ren';
     this.showFeedback(about, '#607D8B', 5000); // Stay for 5 seconds
   }
 
