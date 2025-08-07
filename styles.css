@@ -18,7 +18,7 @@
   min-width: 350px;
   text-align: center;
   user-select: none;
-  transform-origin: top right;
+  transform-origin: top left;
   transition: transform 0.3s ease;
 }
 
