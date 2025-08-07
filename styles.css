@@ -20,6 +20,11 @@
   user-select: none;
   transform-origin: top left;
   transition: transform 0.3s ease;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .points-header {
