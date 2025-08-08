@@ -13,8 +13,6 @@ class VideoPointsTracker {
     this.isFullscreen = false; // Track fullscreen state
     this.gestureStarted = false;
     this.gestureFingers = 0;
-    this.lastAddTime = 0;
-    this.lastSubtractTime = 0;
     this.lastEventId = null; // Track last event to prevent duplicates
     this.addEffectCount = 0; // Track add effect position in sequence
     this.minusEffectCount = 0; // Track minus effect position in sequence
@@ -24,6 +22,7 @@ class VideoPointsTracker {
     this.gestureProcessingTimeout = null; // Timeout for gesture processing
     this.baseScale = 1.0; // User's manually set scale
     this.currentZoomLevel = this.detectZoomLevel(); // Current page zoom
+    
     this.init();
   }
 
@@ -59,6 +58,15 @@ class VideoPointsTracker {
     if (zoom > 0.3 && zoom < 5) { // Reasonable zoom range
       console.log(`YoYo Clicker: Detected zoom level (window ratio): ${zoom}`);
       return zoom;
+    }
+    
+    // Additional fallback: Try device pixel ratio method
+    if (window.devicePixelRatio) {
+      const zoom = 1 / window.devicePixelRatio;
+      if (zoom > 0.3 && zoom < 5) {
+        console.log(`YoYo Clicker: Detected zoom level (device pixel ratio): ${zoom}`);
+        return zoom;
+      }
     }
     
     // Final fallback
@@ -101,6 +109,8 @@ class VideoPointsTracker {
     this.minusPoints = 0;
     this.addEffectCount = 0;
     this.minusEffectCount = 0;
+    
+    
     console.log('YoYo Clicker: All counts reset to zero on boot');
   }
 
@@ -186,11 +196,11 @@ class VideoPointsTracker {
     setInterval(() => {
       const newZoomLevel = this.detectZoomLevel();
       
-      if (Math.abs(newZoomLevel - this.currentZoomLevel) > 0.05) { // 5% tolerance
+      if (Math.abs(newZoomLevel - this.currentZoomLevel) > 0.02) { // 2% tolerance for more sensitive detection
         console.log(`YoYo Clicker: Zoom change detected: ${this.currentZoomLevel} → ${newZoomLevel}`);
         this.handleZoomLevelChange(newZoomLevel);
       }
-    }, 500); // Check every 500ms
+    }, 250); // Check more frequently (every 250ms)
   }
 
   handleZoomChange() {
@@ -199,11 +209,11 @@ class VideoPointsTracker {
     this.zoomChangeTimeout = setTimeout(() => {
       const newZoomLevel = this.detectZoomLevel();
       
-      if (Math.abs(newZoomLevel - this.currentZoomLevel) > 0.05) {
+      if (Math.abs(newZoomLevel - this.currentZoomLevel) > 0.02) {
         console.log(`YoYo Clicker: Zoom change detected via event: ${this.currentZoomLevel} → ${newZoomLevel}`);
         this.handleZoomLevelChange(newZoomLevel);
       }
-    }, 100);
+    }, 50); // Faster response time
   }
 
   handleZoomLevelChange(newZoomLevel) {
@@ -216,6 +226,11 @@ class VideoPointsTracker {
     
     // Update scale and position
     this.updateScaleAndPosition(currentPosition, oldZoom, newZoomLevel);
+    
+    // Always ensure the element is visible after zoom changes
+    setTimeout(() => {
+      this.ensureElementIsVisible();
+    }, 100);
   }
 
   detectFullscreenState() {
@@ -664,6 +679,110 @@ class VideoPointsTracker {
     return { x: left, y: top };
   }
 
+  ensureVisiblePosition(targetPosition) {
+    if (!this.pointsDisplay || !targetPosition) return;
+    
+    // Force a layout recalculation to get accurate dimensions
+    this.pointsDisplay.offsetHeight;
+    
+    // Get current bounds considering zoom and scale
+    const bounds = this.calculateBounds();
+    
+    // Ensure the target position is within visible bounds
+    const clampedX = Math.max(bounds.minX, Math.min(targetPosition.x, bounds.maxX));
+    const clampedY = Math.max(bounds.minY, Math.min(targetPosition.y, bounds.maxY));
+    
+    // Apply the corrected position using left positioning for consistency
+    this.pointsDisplay.style.left = clampedX + 'px';
+    this.pointsDisplay.style.top = clampedY + 'px';
+    this.pointsDisplay.style.right = 'auto'; // Clear right positioning
+    
+    console.log(`YoYo Clicker: Position ensured - Target: (${targetPosition.x}, ${targetPosition.y}), Final: (${clampedX}, ${clampedY}), Zoom: ${this.currentZoomLevel}, Scale: ${this.scale}`);
+  }
+
+
+  ensureElementIsVisible() {
+    if (!this.pointsDisplay) return;
+    
+    // Force layout recalculation
+    this.pointsDisplay.offsetHeight;
+    
+    // Check if element is actually visible in viewport
+    const rect = this.pointsDisplay.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const safetyMargin = 20;
+    
+    const isVisible = (
+      rect.top >= -safetyMargin && 
+      rect.left >= -safetyMargin && 
+      rect.bottom <= viewportHeight + safetyMargin && 
+      rect.right <= viewportWidth + safetyMargin &&
+      rect.width > 0 && 
+      rect.height > 0
+    );
+    
+    // Also check if element is mostly outside viewport (e.g., only small portion visible)
+    const visibleArea = Math.max(0, Math.min(rect.right, viewportWidth) - Math.max(rect.left, 0)) *
+                       Math.max(0, Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0));
+    const totalArea = rect.width * rect.height;
+    const visibilityRatio = totalArea > 0 ? visibleArea / totalArea : 0;
+    
+    if (!isVisible || visibilityRatio < 0.5) { // If less than 50% visible, reposition
+      console.log('YoYo Clicker: Element not sufficiently visible, repositioning...');
+      console.log('YoYo Clicker: Element rect:', rect);
+      console.log('YoYo Clicker: Viewport:', { width: viewportWidth, height: viewportHeight });
+      console.log('YoYo Clicker: Current zoom level:', this.currentZoomLevel, 'Scale:', this.scale);
+      console.log('YoYo Clicker: Visibility ratio:', visibilityRatio.toFixed(2));
+      
+      // Calculate element size considering current scale
+      const elementWidth = this.pointsDisplay.offsetWidth * this.scale;
+      const elementHeight = this.pointsDisplay.offsetHeight * this.scale;
+      
+      // Smart repositioning based on available space
+      let bestX, bestY;
+      
+      // Try top-right position first (preferred)
+      const topRightX = viewportWidth - elementWidth - 30;
+      const topRightY = 30;
+      
+      if (topRightX >= safetyMargin && topRightY >= safetyMargin) {
+        bestX = topRightX;
+        bestY = topRightY;
+        console.log('YoYo Clicker: Using top-right position');
+      } else {
+        // Fallback to top-left if top-right doesn't fit
+        bestX = safetyMargin;
+        bestY = safetyMargin;
+        console.log('YoYo Clicker: Using top-left fallback position');
+      }
+      
+      // Final bounds check
+      bestX = Math.max(safetyMargin, Math.min(bestX, viewportWidth - elementWidth - safetyMargin));
+      bestY = Math.max(safetyMargin, Math.min(bestY, viewportHeight - elementHeight - safetyMargin));
+      
+      // Apply the position
+      this.pointsDisplay.style.left = bestX + 'px';
+      this.pointsDisplay.style.top = bestY + 'px';
+      this.pointsDisplay.style.right = 'auto';
+      
+      console.log(`YoYo Clicker: Applied safe position: Left: ${bestX.toFixed(1)}px, Top: ${bestY.toFixed(1)}px`);
+      
+      // Verify the repositioning worked
+      setTimeout(() => {
+        const newRect = this.pointsDisplay.getBoundingClientRect();
+        const newVisibleArea = Math.max(0, Math.min(newRect.right, viewportWidth) - Math.max(newRect.left, 0)) *
+                              Math.max(0, Math.min(newRect.bottom, viewportHeight) - Math.max(newRect.top, 0));
+        const newTotalArea = newRect.width * newRect.height;
+        const newVisibilityRatio = newTotalArea > 0 ? newVisibleArea / newTotalArea : 0;
+        
+        console.log('YoYo Clicker: Post-reposition rect:', newRect, 'visibility ratio:', newVisibilityRatio.toFixed(2));
+      }, 100);
+    } else {
+      console.log('YoYo Clicker: Element is sufficiently visible');
+    }
+  }
+
   adjustPositionForZoom(oldPosition, oldZoom, newZoom) {
     if (!this.pointsDisplay || oldZoom === newZoom) return;
     
@@ -671,20 +790,45 @@ class VideoPointsTracker {
     const zoomRatio = newZoom / oldZoom;
     
     // Adjust position proportionally to maintain relative screen position
-    const newX = oldPosition.x * zoomRatio;
-    const newY = oldPosition.y * zoomRatio;
+    let newX = oldPosition.x * zoomRatio;
+    let newY = oldPosition.y * zoomRatio;
     
-    // Apply bounds checking
+    // Apply enhanced bounds checking with safety margins
     const bounds = this.calculateBounds();
-    const clampedX = Math.max(bounds.minX, Math.min(newX, bounds.maxX));
-    const clampedY = Math.max(bounds.minY, Math.min(newY, bounds.maxY));
+    const safetyMargin = 20; // Minimum distance from viewport edges
     
-    // Apply the new position (always use left positioning for consistency)
-    this.pointsDisplay.style.left = clampedX + 'px';
-    this.pointsDisplay.style.top = clampedY + 'px';
-    this.pointsDisplay.style.right = 'auto'; // Clear right positioning
+    // Ensure we stay within viewport with safety margins
+    const clampedX = Math.max(safetyMargin, Math.min(newX, Math.max(safetyMargin, bounds.maxX)));
+    const clampedY = Math.max(safetyMargin, Math.min(newY, Math.max(safetyMargin, bounds.maxY)));
     
-    console.log(`YoYo Clicker: Position adjusted for zoom - Old: (${oldPosition.x}, ${oldPosition.y}), New: (${clampedX.toFixed(1)}, ${clampedY.toFixed(1)}), Zoom ratio: ${zoomRatio.toFixed(2)}`);
+    // If the position would be too close to edges or outside viewport, use safe fallback position
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const elementWidth = this.pointsDisplay.offsetWidth * this.scale;
+    const elementHeight = this.pointsDisplay.offsetHeight * this.scale;
+    
+    if (clampedX + elementWidth > viewportWidth - safetyMargin || 
+        clampedY + elementHeight > viewportHeight - safetyMargin ||
+        clampedX < safetyMargin || clampedY < safetyMargin) {
+      
+      // Use safe fallback position - top-right with margins
+      const fallbackX = Math.max(safetyMargin, viewportWidth - elementWidth - 30);
+      const fallbackY = 30;
+      
+      this.pointsDisplay.style.left = fallbackX + 'px';
+      this.pointsDisplay.style.top = fallbackY + 'px';
+      
+      console.log(`YoYo Clicker: Using fallback position due to zoom - Fallback: (${fallbackX.toFixed(1)}, ${fallbackY.toFixed(1)}), Zoom ratio: ${zoomRatio.toFixed(2)}`);
+    } else {
+      // Apply the calculated position
+      this.pointsDisplay.style.left = clampedX + 'px';
+      this.pointsDisplay.style.top = clampedY + 'px';
+      
+      console.log(`YoYo Clicker: Position adjusted for zoom - Old: (${oldPosition.x}, ${oldPosition.y}), New: (${clampedX.toFixed(1)}, ${clampedY.toFixed(1)}), Zoom ratio: ${zoomRatio.toFixed(2)}`);
+    }
+    
+    // Always clear right positioning for consistency
+    this.pointsDisplay.style.right = 'auto';
   }
 
   calculateBounds() {
@@ -766,6 +910,8 @@ class VideoPointsTracker {
     this.points = 0;
     this.plusPoints = 0;
     this.minusPoints = 0;
+    
+    
     this.cleanupFeedbackElements();
     this.updatePointsDisplay();
     this.showFeedback('Reset', '#FF9800');
@@ -802,13 +948,29 @@ class VideoPointsTracker {
     if (this.pointsDisplay) {
       this.pointsDisplay.style.display = 'block';
       
-      // Reset to default position (top-right corner)
-      this.pointsDisplay.style.top = '30px';
-      this.pointsDisplay.style.right = '30px';
-      this.pointsDisplay.style.left = 'auto';
+      // Use smart positioning that considers current zoom and scale
+      const elementWidth = this.pointsDisplay.offsetWidth * this.scale;
+      const elementHeight = this.pointsDisplay.offsetHeight * this.scale;
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const safetyMargin = 30;
+      
+      // Calculate best default position
+      const topRightX = Math.max(safetyMargin, viewportWidth - elementWidth - safetyMargin);
+      const topRightY = safetyMargin;
+      
+      // Apply safe position
+      this.pointsDisplay.style.left = topRightX + 'px';
+      this.pointsDisplay.style.top = topRightY + 'px';
+      this.pointsDisplay.style.right = 'auto';
       
       // Update display to show reset values
       this.updatePointsDisplay();
+      
+      // Double-check visibility after a short delay
+      setTimeout(() => {
+        this.ensureElementIsVisible();
+      }, 100);
     }
     if (this.feedbackDisplay) {
       this.feedbackDisplay.style.display = 'block';
@@ -818,7 +980,7 @@ class VideoPointsTracker {
     const url = window.location.hostname;
     chrome.storage.local.remove([`extension_closed_${url}`]);
     
-    console.log('YoYo Clicker extension shown with fresh default state (position: top-right, scale: 100%)');
+    console.log(`YoYo Clicker extension shown with smart positioning - Left: ${this.pointsDisplay ? this.pointsDisplay.style.left : 'N/A'}, Top: ${this.pointsDisplay ? this.pointsDisplay.style.top : 'N/A'}, Zoom: ${this.currentZoomLevel}, Scale: ${this.scale}`);
   }
 
   toggleMenu() {
@@ -851,16 +1013,22 @@ class VideoPointsTracker {
     this.menuDropdown = document.createElement('div');
     this.menuDropdown.className = 'menu-dropdown';
     this.menuDropdown.innerHTML = `
-      <div class="menu-header">Settings</div>
-      <div class="menu-item" data-action="background-light">🌟 Light Background</div>
-      <div class="menu-item" data-action="background-dark">🌙 Dark Background</div>
+      <div class="menu-header">设置</div>
+      <div class="menu-item" data-action="background-light" style="font-size: 14px;">☀️   白昼模式</div>
+      <div class="menu-item" data-action="background-dark" style="font-size: 14px;">🌑  暗夜模式</div>
+      <div class="menu-item" data-action="background-gradient" style="font-size: 14px;">🔮  渐变模式</div>
+      <div class="menu-item" data-action="background-transparent" style="font-size: 14px;">⚪️  通透模式</div>
       <div class="menu-separator"></div>
-      <div class="menu-item" data-action="about">ℹ️ About</div>
+      <div class="menu-item" data-action="about" style="font-size: 15px;">🪀  关于</div>
     `;
     
     // Apply current background mode to menu
     if (this.backgroundMode === 'dark') {
       this.menuDropdown.classList.add('dark-mode');
+    } else if (this.backgroundMode === 'gradient') {
+      this.menuDropdown.classList.add('gradient-mode');
+    } else if (this.backgroundMode === 'transparent') {
+      this.menuDropdown.classList.add('transparent-mode');
     }
     
     // Position menu relative to the main display
@@ -883,6 +1051,12 @@ class VideoPointsTracker {
       case 'background-dark':
         this.setBackgroundMode('dark');
         break;
+      case 'background-gradient':
+        this.setBackgroundMode('gradient');
+        break;
+      case 'background-transparent':
+        this.setBackgroundMode('transparent');
+        break;
       case 'about':
         this.showAbout();
         break;
@@ -891,33 +1065,63 @@ class VideoPointsTracker {
 
 
   showAbout() {
-    const about = 'YoYo Clicker v1.2\nDesigned by Shawn Ren';
+    const about = 'YoYo Clicker v1.3\nDesigned by Shawn Ren';
     this.showFeedback(about, '#607D8B', 5000); // Stay for 5 seconds
   }
 
   setBackgroundMode(mode) {
+    const oldMode = this.backgroundMode;
+    
     this.backgroundMode = mode;
     this.updateBackgroundMode();
     this.saveBackgroundMode();
-    this.showFeedback(`${mode === 'dark' ? 'Dark' : 'Light'} Mode`, '#9C27B0');
-    console.log(`YoYo Clicker: Background mode set to ${mode}`);
+    
+    let modeName = 'Light';
+    let feedbackColor = '#9C27B0';
+    
+    if (mode === 'dark') {
+      modeName = 'Dark';
+      feedbackColor = '#64B5F6';
+    } else if (mode === 'gradient') {
+      modeName = 'Gradient';
+      feedbackColor = '#FF3B94';
+    } else if (mode === 'transparent') {
+      modeName = 'Transparent';
+      feedbackColor = '#ffffff';
+    }
+    
+    this.showFeedback(`${modeName} Mode`, feedbackColor);
+    console.log(`YoYo Clicker: Background mode changed from ${oldMode} to ${mode}`);
   }
 
   updateBackgroundMode() {
     if (this.pointsDisplay) {
+      // Remove all background mode classes first
+      this.pointsDisplay.classList.remove('dark-mode', 'gradient-mode', 'transparent-mode');
+      
+      // Add the current background mode class
       if (this.backgroundMode === 'dark') {
         this.pointsDisplay.classList.add('dark-mode');
-      } else {
-        this.pointsDisplay.classList.remove('dark-mode');
+      } else if (this.backgroundMode === 'gradient') {
+        this.pointsDisplay.classList.add('gradient-mode');
+      } else if (this.backgroundMode === 'transparent') {
+        this.pointsDisplay.classList.add('transparent-mode');
       }
+      // Light mode has no additional class (default styling)
     }
     
     // Update menu dropdown if it exists
     if (this.menuDropdown) {
+      // Remove all background mode classes first
+      this.menuDropdown.classList.remove('dark-mode', 'gradient-mode', 'transparent-mode');
+      
+      // Add the current background mode class
       if (this.backgroundMode === 'dark') {
         this.menuDropdown.classList.add('dark-mode');
-      } else {
-        this.menuDropdown.classList.remove('dark-mode');
+      } else if (this.backgroundMode === 'gradient') {
+        this.menuDropdown.classList.add('gradient-mode');
+      } else if (this.backgroundMode === 'transparent') {
+        this.menuDropdown.classList.add('transparent-mode');
       }
     }
   }
@@ -929,11 +1133,15 @@ class VideoPointsTracker {
     this.pointsDisplay.id = 'video-points-display';
     this.pointsDisplay.className = 'points-display';
     
-    // Always start at default position (top-right corner)
-    this.pointsDisplay.style.top = '30px';
-    this.pointsDisplay.style.right = '30px';
+    // Calculate zoom-aware initial position
+    const zoomAdjustedTop = Math.max(10, 30 / this.currentZoomLevel);
+    const zoomAdjustedRight = Math.max(10, 30 / this.currentZoomLevel);
+    
+    // Start at zoom-adjusted position
+    this.pointsDisplay.style.top = zoomAdjustedTop + 'px';
+    this.pointsDisplay.style.right = zoomAdjustedRight + 'px';
     this.pointsDisplay.style.left = 'auto';
-    console.log('YoYo Clicker: Extension positioned at default location (top-right)');
+    console.log(`YoYo Clicker: Extension positioned at zoom-adjusted location - Top: ${zoomAdjustedTop}px, Right: ${zoomAdjustedRight}px, Zoom: ${this.currentZoomLevel}`);
     this.pointsDisplay.innerHTML = `
       <div class="points-header draggable-header" id="draggable-header">
         <button class="menu-button" id="menu-button">☰</button>
@@ -985,6 +1193,11 @@ class VideoPointsTracker {
     
     this.setupDragFunctionality();
     
+    // Ensure element is visible after creation
+    setTimeout(() => {
+      this.ensureElementIsVisible();
+    }, 100);
+    
     console.log('YoYo Clicker: Display created');
   }
 
@@ -1030,7 +1243,15 @@ class VideoPointsTracker {
   showFeedback(text, color, duration = 800) {
     // Create a new feedback element for each action
     const feedbackElement = document.createElement('div');
-    feedbackElement.className = `points-feedback visible${this.backgroundMode === 'dark' ? ' dark-mode' : ''}`;
+    let modeClass = '';
+    if (this.backgroundMode === 'dark') {
+      modeClass = ' dark-mode';
+    } else if (this.backgroundMode === 'gradient') {
+      modeClass = ' gradient-mode';
+    } else if (this.backgroundMode === 'transparent') {
+      modeClass = ' transparent-mode';
+    }
+    feedbackElement.className = `points-feedback visible${modeClass}`;
     
     // Handle multi-line text for about section
     if (text.includes('\n')) {
