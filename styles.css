@@ -337,6 +337,234 @@
               inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
+/* Gradient Mode Styles */
+.points-display.gradient-mode {
+  background: linear-gradient(135deg, 
+    rgba(255, 59, 148, 0.2) 0%, 
+    rgba(255, 100, 59, 0.2) 25%, 
+    rgba(138, 43, 226, 0.2) 50%, 
+    rgba(59, 130, 246, 0.2) 75%, 
+    rgba(16, 185, 129, 0.2) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 15px 40px rgba(138, 43, 226, 0.3), 
+              inset 0 1px 0 rgba(255, 255, 255, 0.3),
+              0 0 30px rgba(255, 59, 148, 0.2);
+}
+
+/* Commented out animated border temporarily to test positioning
+.points-display.gradient-mode::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(135deg, 
+    rgba(255, 59, 148, 0.6) 0%, 
+    rgba(255, 100, 59, 0.6) 25%, 
+    rgba(138, 43, 226, 0.6) 50%, 
+    rgba(59, 130, 246, 0.6) 75%, 
+    rgba(16, 185, 129, 0.6) 100%);
+  border-radius: 27px;
+  z-index: -1;
+  animation: gradientShift 8s ease-in-out infinite;
+  pointer-events: none;
+  will-change: background;
+}
+
+@keyframes gradientShift {
+  0%, 100% {
+    background: linear-gradient(135deg, 
+      rgba(255, 59, 148, 0.6) 0%, 
+      rgba(255, 100, 59, 0.6) 25%, 
+      rgba(138, 43, 226, 0.6) 50%, 
+      rgba(59, 130, 246, 0.6) 75%, 
+      rgba(16, 185, 129, 0.6) 100%);
+  }
+  50% {
+    background: linear-gradient(135deg, 
+      rgba(16, 185, 129, 0.6) 0%, 
+      rgba(59, 130, 246, 0.6) 25%, 
+      rgba(138, 43, 226, 0.6) 50%, 
+      rgba(255, 100, 59, 0.6) 75%, 
+      rgba(255, 59, 148, 0.6) 100%);
+  }
+}
+*/
+
+/* Transparent Mode Styles */
+.points-display.transparent-mode {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1),
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.points-display.transparent-mode .points-header {
+  color: #ffffff;
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.5),
+               0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.points-display.transparent-mode .draggable-header:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f0f0f0;
+}
+
+.points-display.transparent-mode .plus-section, 
+.points-display.transparent-mode .minus-section {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.points-display.transparent-mode .scale-section {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.points-display.transparent-mode .scale-button {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.points-display.transparent-mode .scale-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+.points-display.transparent-mode .scale-text {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.points-display.transparent-mode .section-label {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.points-display.transparent-mode .total-label {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.points-display.transparent-mode .reset-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.points-display.transparent-mode .reset-button {
+  background: rgba(255, 152, 0, 0.2);
+  border: 1px solid rgba(255, 152, 0, 0.3);
+  color: #FFB74D;
+}
+
+.points-display.transparent-mode .reset-button:hover {
+  background: rgba(255, 152, 0, 0.3);
+  border-color: rgba(255, 152, 0, 0.5);
+  box-shadow: 0 0 10px rgba(255, 152, 0, 0.3);
+}
+
+.points-display.transparent-mode .close-button {
+  background: rgba(244, 67, 54, 0.2);
+  border: 1px solid rgba(244, 67, 54, 0.3);
+  color: #ff7761;
+}
+
+.points-display.transparent-mode .close-button:hover {
+  background: rgba(244, 67, 54, 0.3);
+  border-color: rgba(244, 67, 54, 0.5);
+  box-shadow: 0 0 10px rgba(244, 67, 54, 0.3);
+}
+
+.points-display.transparent-mode .menu-button {
+  background: rgba(33, 150, 243, 0.2);
+  border: 1px solid rgba(33, 150, 243, 0.3);
+  color: #64B5F6;
+}
+
+.points-display.transparent-mode .menu-button:hover {
+  background: rgba(33, 150, 243, 0.3);
+  border-color: rgba(33, 150, 243, 0.5);
+  box-shadow: 0 0 10px rgba(33, 150, 243, 0.3);
+}
+
+.points-display.gradient-mode .points-header {
+  color: #FF3B94;
+  text-shadow: 0 0 10px rgba(255, 59, 148, 0.5);
+}
+
+.points-display.gradient-mode .draggable-header:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #FF6B3B;
+  text-shadow: 0 0 8px rgba(255, 107, 59, 0.6);
+}
+
+.points-display.gradient-mode .plus-section, 
+.points-display.gradient-mode .minus-section {
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.points-display.gradient-mode .scale-section {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.points-display.gradient-mode .scale-button {
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.points-display.gradient-mode .scale-button:hover {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 15px rgba(255, 59, 148, 0.3);
+}
+
+.points-display.gradient-mode .reset-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.points-display.gradient-mode .reset-button {
+  background: rgba(255, 152, 0, 0.25);
+  border: 2px solid rgba(255, 152, 0, 0.4);
+  box-shadow: 0 0 15px rgba(255, 152, 0, 0.2);
+}
+
+.points-display.gradient-mode .reset-button:hover {
+  background: rgba(255, 152, 0, 0.35);
+  border-color: rgba(255, 152, 0, 0.6);
+  box-shadow: 0 0 20px rgba(255, 152, 0, 0.4);
+}
+
+.points-display.gradient-mode .close-button {
+  background: rgba(244, 67, 54, 0.25);
+  border: 1px solid rgba(244, 67, 54, 0.4);
+  box-shadow: 0 0 10px rgba(244, 67, 54, 0.2);
+}
+
+.points-display.gradient-mode .close-button:hover {
+  background: rgba(244, 67, 54, 0.35);
+  border-color: rgba(244, 67, 54, 0.6);
+  box-shadow: 0 0 15px rgba(244, 67, 54, 0.4);
+}
+
+.points-display.gradient-mode .menu-button {
+  background: rgba(33, 150, 243, 0.25);
+  border: 1px solid rgba(33, 150, 243, 0.4);
+  box-shadow: 0 0 10px rgba(33, 150, 243, 0.2);
+}
+
+.points-display.gradient-mode .menu-button:hover {
+  background: rgba(33, 150, 243, 0.35);
+  border-color: rgba(33, 150, 243, 0.6);
+  box-shadow: 0 0 15px rgba(33, 150, 243, 0.4);
+}
+
 .points-display.dark-mode .points-header {
   color: #64B5F6;
 }
@@ -406,6 +634,29 @@
 .points-feedback.dark-mode {
   background: rgba(20, 20, 20, 0.9);
   border: 2px solid rgba(80, 80, 80, 0.6);
+}
+
+/* Gradient mode feedback */
+.points-feedback.gradient-mode {
+  background: linear-gradient(135deg, 
+    rgba(255, 59, 148, 0.25) 0%, 
+    rgba(138, 43, 226, 0.25) 50%, 
+    rgba(59, 130, 246, 0.25) 100%);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 10px 30px rgba(138, 43, 226, 0.3),
+              0 0 20px rgba(255, 59, 148, 0.2);
+}
+
+/* Transparent mode feedback */
+.points-feedback.transparent-mode {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  color: white;
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.5),
+               0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 /* Menu dropdown styles - solid background for readability */
@@ -481,5 +732,66 @@
 }
 
 .menu-dropdown.dark-mode .menu-separator {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Gradient mode menu dropdown styles */
+.menu-dropdown.gradient-mode {
+  background: linear-gradient(135deg, 
+    rgba(255, 59, 148, 0.95) 0%, 
+    rgba(138, 43, 226, 0.95) 50%, 
+    rgba(59, 130, 246, 0.95) 100%);
+  color: white;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 15px 40px rgba(138, 43, 226, 0.4);
+}
+
+.menu-dropdown.gradient-mode .menu-header {
+  color: #FFE0EC;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+}
+
+.menu-dropdown.gradient-mode .menu-item {
+  color: #F0F0F0;
+}
+
+.menu-dropdown.gradient-mode .menu-item:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #FFFFFF;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+}
+
+.menu-dropdown.gradient-mode .menu-separator {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Transparent mode menu dropdown styles */
+.menu-dropdown.transparent-mode {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.menu-dropdown.transparent-mode .menu-header {
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+}
+
+.menu-dropdown.transparent-mode .menu-item {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.menu-dropdown.transparent-mode .menu-item:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #FFFFFF;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+}
+
+.menu-dropdown.transparent-mode .menu-separator {
   background: rgba(255, 255, 255, 0.2);
 }
