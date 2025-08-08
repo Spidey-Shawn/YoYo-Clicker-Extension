@@ -10,11 +10,13 @@
   
 - 鼠标移至 **YoYo Clicker** 栏时，可按住对窗口进行移动。
 
-- **Menu**里自带两种背景板颜色切换，跟随设备时间自行调整（设定是6:00AM-6:00PM为深色模式，其余时间为浅色）。
+- **Menu**里自带四种背景板颜色切换，跟随设备时间自行调整（设定是6:00AM-6:00PM为深色模式，其余时间为浅色）。
 
 - 加减分有动画提醒，均设置在视频边侧，不影响观感。
 
 - 视频全屏模式下也可正常使用。
+
+- 现已全面仅支持中文。
 
 A browser extension with a glassmorphism UI that allows you to track points while watching videos using trackpad and mouse gestures.
 
