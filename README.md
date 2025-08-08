@@ -26,6 +26,7 @@ A browser extension with a glassmorphism UI that allows you to track points whil
 - **Plus/Minus sections**: Display only (show current counts)
 
 ### Keyboard Shortcuts
+- **Ctrl+Y**: Activate the YoYo Clicker Extension on the current web page
 - **Ctrl+R**: Reset points to 0
 
 ### Visual Feedback
