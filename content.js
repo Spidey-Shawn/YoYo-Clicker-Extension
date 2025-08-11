@@ -404,8 +404,8 @@ class VideoPointsTracker {
   }
 
   handleContextMenu(e) {
-    // Check if the right-click is on any YoYo Clicker element
-    if (this.isYoYoClickerElement(e.target)) {
+    // Check if the right-click is on any YoYo Clicker element (but not drag handle)
+    if (this.isYoYoClickerElement(e.target) && !this.isDragHandle(e.target)) {
       // Prevent the browser context menu from appearing
       e.preventDefault();
       e.stopPropagation();
@@ -413,13 +413,13 @@ class VideoPointsTracker {
       console.log('Context menu prevented on YoYo Clicker extension');
       
       // Only handle as subtract gesture if it's in the points area (not menu/buttons)
-      if (this.isPointsArea(e.target) && !this.isDragHandle(e.target)) {
+      if (this.isPointsArea(e.target)) {
         this.handleAllMouseEvents(e, 'contextmenu');
       }
       return false;
     }
     
-    // Allow normal context menu for other elements
+    // Allow normal context menu for other elements (including drag handle)
     return true;
   }
 
@@ -450,9 +450,9 @@ class VideoPointsTracker {
   handleAllMouseEvents(e, eventType) {
     console.log(`EVENT: ${eventType}, button: ${e.button}, buttons: ${e.buttons}, detail: ${e.detail}, target:`, e.target.className);
     
-    // CRITICAL: Always prevent event bubbling for ANY interaction with YoYo Clicker
-    // This prevents clicks from reaching the video player and triggering fullscreen exit
-    if (this.isPointsArea(e.target) || this.isYoYoClickerElement(e.target)) {
+    // CRITICAL: Prevent event bubbling for YoYo Clicker, but allow drag handle to work
+    // Exception: Don't prevent events on drag handle to allow dragging functionality
+    if ((this.isPointsArea(e.target) || this.isYoYoClickerElement(e.target)) && !this.isDragHandle(e.target)) {
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();
@@ -1201,20 +1201,24 @@ class VideoPointsTracker {
       return false;
     });
 
-    // Prevent double-click events from bubbling to video player
+    // Prevent double-click events from bubbling to video player (except on drag handle)
     this.pointsDisplay.addEventListener('dblclick', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      console.log('Double-click blocked on points display to protect fullscreen');
-      return false;
+      if (!this.isDragHandle(e.target)) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        console.log('Double-click blocked on points display to protect fullscreen');
+        return false;
+      }
     });
 
-    // Prevent click events from bubbling (additional safety)
+    // Prevent click events from bubbling (additional safety, except on drag handle)
     this.pointsDisplay.addEventListener('click', (e) => {
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      console.log('Click event stopped from bubbling');
+      if (!this.isDragHandle(e.target)) {
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        console.log('Click event stopped from bubbling');
+      }
     });
 
     this.feedbackDisplay = document.createElement('div');
@@ -1477,10 +1481,8 @@ class VideoPointsTracker {
     dragHandle.addEventListener('mousedown', (e) => {
       isDragging = true;
       
-      // Prevent event bubbling to protect fullscreen mode
+      // Only prevent default to avoid text selection, but allow event to flow for drag
       e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
       
       // Record starting positions
       startMouseX = e.clientX;
@@ -1511,10 +1513,8 @@ class VideoPointsTracker {
     document.addEventListener('mousemove', (e) => {
       if (!isDragging) return;
       
-      // Prevent event bubbling during drag to protect fullscreen mode
+      // Prevent default during drag to avoid text selection
       e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
       
       // Calculate mouse movement
       const deltaX = e.clientX - startMouseX;
