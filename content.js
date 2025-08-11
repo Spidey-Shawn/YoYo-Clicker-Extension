@@ -404,15 +404,18 @@ class VideoPointsTracker {
   }
 
   handleContextMenu(e) {
-    // Check if the right-click is on the YoYo Clicker extension
-    if (this.isPointsArea(e.target) && !this.isDragHandle(e.target)) {
+    // Check if the right-click is on any YoYo Clicker element
+    if (this.isYoYoClickerElement(e.target)) {
       // Prevent the browser context menu from appearing
       e.preventDefault();
       e.stopPropagation();
+      e.stopImmediatePropagation();
       console.log('Context menu prevented on YoYo Clicker extension');
       
-      // Handle the right-click as a subtract gesture
-      this.handleAllMouseEvents(e, 'contextmenu');
+      // Only handle as subtract gesture if it's in the points area (not menu/buttons)
+      if (this.isPointsArea(e.target) && !this.isDragHandle(e.target)) {
+        this.handleAllMouseEvents(e, 'contextmenu');
+      }
       return false;
     }
     
@@ -447,20 +450,26 @@ class VideoPointsTracker {
   handleAllMouseEvents(e, eventType) {
     console.log(`EVENT: ${eventType}, button: ${e.button}, buttons: ${e.buttons}, detail: ${e.detail}, target:`, e.target.className);
     
+    // CRITICAL: Always prevent event bubbling for ANY interaction with YoYo Clicker
+    // This prevents clicks from reaching the video player and triggering fullscreen exit
+    if (this.isPointsArea(e.target) || this.isYoYoClickerElement(e.target)) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      console.log('YoYo Clicker: Event bubbling prevented to protect fullscreen mode');
+    }
+    
     // Handle scale controls (works with or without video)
     if (e.target.classList.contains('scale-decrease') && (eventType === 'mousedown' || eventType === 'pointerdown')) {
-      e.preventDefault();
       this.decreaseScale();
       return;
     } else if (e.target.classList.contains('scale-increase') && (eventType === 'mousedown' || eventType === 'pointerdown')) {
-      e.preventDefault();
       this.increaseScale();
       return;
     }
     
     // Handle reset button (works with or without video)
     if (e.target.classList.contains('reset-button') && (eventType === 'mousedown' || eventType === 'pointerdown')) {
-      e.preventDefault();
       console.log('Reset button clicked');
       this.resetPoints();
       return;
@@ -468,7 +477,6 @@ class VideoPointsTracker {
     
     // Handle close button (ALWAYS works, even without video)
     if (e.target.classList.contains('close-button') && (eventType === 'mousedown' || eventType === 'pointerdown')) {
-      e.preventDefault();
       console.log('Close button clicked');
       this.closeExtension();
       return;
@@ -476,7 +484,6 @@ class VideoPointsTracker {
     
     // Handle menu button (works with or without video)
     if (e.target.classList.contains('menu-button') && (eventType === 'mousedown' || eventType === 'pointerdown')) {
-      e.preventDefault();
       console.log('Menu button clicked');
       this.toggleMenu();
       return;
@@ -511,7 +518,6 @@ class VideoPointsTracker {
       
       // RIGHT CLICK / TWO-FINGER TAP = MINUS POINT
       if (isRightClick) {
-        e.preventDefault();
         console.log(`Right-click/Two-finger tap detected via ${eventType} (button: ${e.button})`);
         this.queueGesture('subtract', gestureId);
         return;
@@ -519,7 +525,6 @@ class VideoPointsTracker {
       
       // LEFT CLICK / SINGLE-FINGER TAP = PLUS POINT
       if ((eventType === 'mousedown' || eventType === 'pointerdown') && e.button === 0) {
-        e.preventDefault();
         console.log(`Left-click/Single-finger tap detected via ${eventType}`);
         this.queueGesture('add', gestureId);
         return;
@@ -623,7 +628,7 @@ class VideoPointsTracker {
 
 
   decreaseScale() {
-    this.baseScale = Math.max(0.5, this.baseScale - 0.1);
+    this.baseScale = Math.max(0.2, this.baseScale - 0.1);
     this.updateScaleForZoom();
     console.log('Base scale decreased to:', this.baseScale);
     // No saveScale() - scale is not persisted
@@ -639,7 +644,7 @@ class VideoPointsTracker {
   updateScaleForZoom() {
     // Simple scale update without position adjustment (used for manual scale changes)
     this.scale = this.baseScale * this.currentZoomLevel;
-    this.scale = Math.max(0.2, Math.min(this.scale, 4.0));
+    this.scale = Math.max(0.1, Math.min(this.scale, 4.0)); // Allow even smaller scales when combined with zoom
     console.log(`YoYo Clicker: Scale updated - Base: ${this.baseScale}, Zoom: ${this.currentZoomLevel}, Final: ${this.scale}`);
     this.updateScale();
   }
@@ -647,7 +652,7 @@ class VideoPointsTracker {
   updateScaleAndPosition(oldPosition, oldZoom, newZoom) {
     // Update scale first
     this.scale = this.baseScale * newZoom;
-    this.scale = Math.max(0.2, Math.min(this.scale, 4.0));
+    this.scale = Math.max(0.1, Math.min(this.scale, 4.0)); // Allow even smaller scales when combined with zoom
     this.updateScale();
     
     // Adjust position proportionally to zoom change if element exists
@@ -858,8 +863,20 @@ class VideoPointsTracker {
     }
   }
 
+  isYoYoClickerElement(element) {
+    // Check if element is part of YoYo Clicker (including menu dropdown)
+    return element.id === 'video-points-display' || 
+           element.closest('#video-points-display') ||
+           element.classList.contains('points-display') ||
+           element.closest('.points-display') ||
+           element.classList.contains('menu-dropdown') || 
+           element.closest('.menu-dropdown') ||
+           element.classList.contains('points-feedback') ||
+           element.closest('.points-feedback');
+  }
+
   isPointsArea(element) {
-    // Exclude menu dropdown and its children
+    // Exclude menu dropdown and its children from point tracking
     if (element.classList.contains('menu-dropdown') || 
         element.closest('.menu-dropdown') ||
         element.classList.contains('menu-item') ||
@@ -1175,12 +1192,29 @@ class VideoPointsTracker {
     `;
     document.body.appendChild(this.pointsDisplay);
 
-    // Add context menu prevention directly to the element
+    // Add comprehensive event prevention directly to the element
     this.pointsDisplay.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       e.stopPropagation();
+      e.stopImmediatePropagation();
       console.log('Context menu blocked on points display');
       return false;
+    });
+
+    // Prevent double-click events from bubbling to video player
+    this.pointsDisplay.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      console.log('Double-click blocked on points display to protect fullscreen');
+      return false;
+    });
+
+    // Prevent click events from bubbling (additional safety)
+    this.pointsDisplay.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      console.log('Click event stopped from bubbling');
     });
 
     this.feedbackDisplay = document.createElement('div');
@@ -1252,6 +1286,9 @@ class VideoPointsTracker {
       modeClass = ' transparent-mode';
     }
     feedbackElement.className = `points-feedback visible${modeClass}`;
+    
+    // Debug logging
+    console.log(`YoYo Clicker: Creating feedback "${text}" with background mode: ${this.backgroundMode}, class: ${feedbackElement.className}`);
     
     // Handle multi-line text for about section
     if (text.includes('\n')) {
@@ -1440,6 +1477,11 @@ class VideoPointsTracker {
     dragHandle.addEventListener('mousedown', (e) => {
       isDragging = true;
       
+      // Prevent event bubbling to protect fullscreen mode
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      
       // Record starting positions
       startMouseX = e.clientX;
       startMouseY = e.clientY;
@@ -1464,11 +1506,15 @@ class VideoPointsTracker {
       startElementY = currentTop;
       
       dragHandle.style.cursor = 'grabbing';
-      e.preventDefault();
     });
     
     document.addEventListener('mousemove', (e) => {
       if (!isDragging) return;
+      
+      // Prevent event bubbling during drag to protect fullscreen mode
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
       
       // Calculate mouse movement
       const deltaX = e.clientX - startMouseX;
@@ -1503,8 +1549,6 @@ class VideoPointsTracker {
       this.pointsDisplay.style.left = clampedX + 'px';
       this.pointsDisplay.style.top = clampedY + 'px';
       this.pointsDisplay.style.right = 'auto';
-      
-      e.preventDefault();
     });
     
     document.addEventListener('mouseup', () => {
