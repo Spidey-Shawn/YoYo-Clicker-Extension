@@ -22,6 +22,7 @@ class VideoPointsTracker {
     this.gestureProcessingTimeout = null; // Timeout for gesture processing
     this.baseScale = 1.0; // User's manually set scale
     this.currentZoomLevel = this.detectZoomLevel(); // Current page zoom
+    this.notes = ''; // User notes for current video
     
     this.init();
   }
@@ -1186,6 +1187,10 @@ class VideoPointsTracker {
         <div class="scale-text">100%</div>
         <div class="scale-button scale-increase">+</div>
       </div>
+      <div class="notes-section">
+        <div class="notes-label">笔记 / Notes</div>
+        <textarea class="notes-textarea" id="notes-textarea" placeholder="在此添加笔记..." rows="3"></textarea>
+      </div>
       <div class="reset-section">
         <button class="reset-button" id="reset-button">重置</button>
       </div>
@@ -1237,6 +1242,40 @@ class VideoPointsTracker {
     }, 100);
     
     console.log('YoYo Clicker: Display created');
+  }
+
+  updateNotesDisplay() {
+    if (this.pointsDisplay) {
+      const notesTextarea = this.pointsDisplay.querySelector('.notes-textarea');
+      
+      if (notesTextarea) {
+        notesTextarea.value = this.notes;
+        
+        // Add event listener for auto-save on input
+        if (!notesTextarea.dataset.listenerAdded) {
+          notesTextarea.addEventListener('input', (e) => {
+            this.notes = e.target.value;
+            this.savePoints();
+            console.log('YoYo Clicker: Notes updated and saved');
+          });
+          
+          // Prevent context menu on textarea
+          notesTextarea.addEventListener('contextmenu', (e) => {
+            e.stopPropagation();
+          });
+          
+          // Prevent clicks/pointers from triggering point changes
+          notesTextarea.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+          });
+          notesTextarea.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+          });
+          
+          notesTextarea.dataset.listenerAdded = 'true';
+        }
+      }
+    }
   }
 
   updatePointsDisplay() {
@@ -1412,6 +1451,7 @@ class VideoPointsTracker {
       points: this.points,
       plusPoints: this.plusPoints,
       minusPoints: this.minusPoints,
+      notes: this.notes,
       lastUpdated: Date.now()
       // Removed scale persistence - extension will always start at default scale
     };
@@ -1440,6 +1480,9 @@ class VideoPointsTracker {
       this.plusPoints = 0;
       this.minusPoints = 0;
       
+      // Load saved notes if available
+      this.notes = (data && data.notes) ? data.notes : '';
+      
       // Always start with default scale (1.0) - no persistence
       this.baseScale = 1.0;
       
@@ -1465,6 +1508,7 @@ class VideoPointsTracker {
       
       this.updatePointsDisplay();
       this.updateBackgroundMode();
+      this.updateNotesDisplay();
       console.log('YoYo Clicker: Fresh startup - Points: 0, Base scale: 100%, Zoom level:', this.currentZoomLevel, 'Final scale:', this.scale, 'Background mode:', this.backgroundMode);
     });
   }
