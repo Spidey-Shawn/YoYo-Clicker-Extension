@@ -1188,8 +1188,8 @@ class VideoPointsTracker {
         <div class="scale-button scale-increase">+</div>
       </div>
       <div class="notes-section">
-        <div class="notes-label">笔记 / Notes</div>
-        <textarea class="notes-textarea" id="notes-textarea" placeholder="在此添加笔记..." rows="3"></textarea>
+        <label class="notes-label" for="notes-textarea">笔记 / Notes</label>
+        <textarea class="notes-textarea" id="notes-textarea" placeholder="在此添加笔记..." rows="3" aria-label="Add notes or comments about the video"></textarea>
       </div>
       <div class="reset-section">
         <button class="reset-button" id="reset-button">重置</button>
@@ -1235,6 +1235,7 @@ class VideoPointsTracker {
     this.updateBackgroundMode();
     
     this.setupDragFunctionality();
+    this.setupNotesListeners();
     
     // Ensure element is visible after creation
     setTimeout(() => {
@@ -1244,36 +1245,38 @@ class VideoPointsTracker {
     console.log('YoYo Clicker: Display created');
   }
 
+  setupNotesListeners() {
+    const notesTextarea = this.pointsDisplay.querySelector('.notes-textarea');
+    
+    if (notesTextarea) {
+      // Add event listener for auto-save on input
+      notesTextarea.addEventListener('input', (e) => {
+        this.notes = e.target.value;
+        this.savePoints();
+        console.log('YoYo Clicker: Notes updated and saved');
+      });
+      
+      // Prevent context menu on textarea
+      notesTextarea.addEventListener('contextmenu', (e) => {
+        e.stopPropagation();
+      });
+      
+      // Prevent clicks/pointers from triggering point changes
+      notesTextarea.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+      });
+      notesTextarea.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+      });
+    }
+  }
+
   updateNotesDisplay() {
     if (this.pointsDisplay) {
       const notesTextarea = this.pointsDisplay.querySelector('.notes-textarea');
       
       if (notesTextarea) {
         notesTextarea.value = this.notes;
-        
-        // Add event listener for auto-save on input
-        if (!notesTextarea.dataset.listenerAdded) {
-          notesTextarea.addEventListener('input', (e) => {
-            this.notes = e.target.value;
-            this.savePoints();
-            console.log('YoYo Clicker: Notes updated and saved');
-          });
-          
-          // Prevent context menu on textarea
-          notesTextarea.addEventListener('contextmenu', (e) => {
-            e.stopPropagation();
-          });
-          
-          // Prevent clicks/pointers from triggering point changes
-          notesTextarea.addEventListener('mousedown', (e) => {
-            e.stopPropagation();
-          });
-          notesTextarea.addEventListener('pointerdown', (e) => {
-            e.stopPropagation();
-          });
-          
-          notesTextarea.dataset.listenerAdded = 'true';
-        }
       }
     }
   }
