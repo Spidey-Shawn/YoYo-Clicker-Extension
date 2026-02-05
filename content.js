@@ -22,6 +22,9 @@ class VideoPointsTracker {
     this.gestureProcessingTimeout = null; // Timeout for gesture processing
     this.baseScale = 1.0; // User's manually set scale
     this.currentZoomLevel = this.detectZoomLevel(); // Current page zoom
+    this.chatPanel = null; // Chat panel element
+    this.chatVisible = false; // Track chat visibility
+    this.chatMessages = []; // Store chat messages
     
     this.init();
   }
@@ -31,6 +34,7 @@ class VideoPointsTracker {
     this.setupEventListeners();
     this.setupFullscreenListeners();
     this.setupZoomListeners();
+    this.loadChatMessages();
     this.checkExtensionState();
   }
 
@@ -475,6 +479,13 @@ class VideoPointsTracker {
       return;
     }
     
+    // Handle chat button (works with or without video)
+    if (e.target.classList.contains('chat-button') && (eventType === 'mousedown' || eventType === 'pointerdown')) {
+      console.log('Chat button clicked');
+      this.toggleChat();
+      return;
+    }
+    
     // Handle close button (ALWAYS works, even without video)
     if (e.target.classList.contains('close-button') && (eventType === 'mousedown' || eventType === 'pointerdown')) {
       console.log('Close button clicked');
@@ -864,24 +875,29 @@ class VideoPointsTracker {
   }
 
   isYoYoClickerElement(element) {
-    // Check if element is part of YoYo Clicker (including menu dropdown)
+    // Check if element is part of YoYo Clicker (including menu dropdown and chat panel)
     return element.id === 'video-points-display' || 
            element.closest('#video-points-display') ||
            element.classList.contains('points-display') ||
            element.closest('.points-display') ||
            element.classList.contains('menu-dropdown') || 
            element.closest('.menu-dropdown') ||
+           element.classList.contains('chat-panel') || 
+           element.closest('.chat-panel') ||
            element.classList.contains('points-feedback') ||
            element.closest('.points-feedback');
   }
 
   isPointsArea(element) {
-    // Exclude menu dropdown and its children from point tracking
+    // Exclude menu dropdown, chat panel and their children from point tracking
     if (element.classList.contains('menu-dropdown') || 
         element.closest('.menu-dropdown') ||
         element.classList.contains('menu-item') ||
         element.classList.contains('menu-header') ||
-        element.classList.contains('menu-separator')) {
+        element.classList.contains('menu-separator') ||
+        element.classList.contains('chat-panel') || 
+        element.closest('.chat-panel') ||
+        element.classList.contains('chat-button')) {
       return false;
     }
     
@@ -1141,6 +1157,180 @@ class VideoPointsTracker {
         this.menuDropdown.classList.add('transparent-mode');
       }
     }
+    
+    // Update chat panel if it exists
+    if (this.chatPanel) {
+      // Remove all background mode classes first
+      this.chatPanel.classList.remove('dark-mode', 'gradient-mode', 'transparent-mode');
+      
+      // Add the current background mode class
+      if (this.backgroundMode === 'dark') {
+        this.chatPanel.classList.add('dark-mode');
+      } else if (this.backgroundMode === 'gradient') {
+        this.chatPanel.classList.add('gradient-mode');
+      } else if (this.backgroundMode === 'transparent') {
+        this.chatPanel.classList.add('transparent-mode');
+      }
+    }
+  }
+
+  toggleChat() {
+    if (this.chatVisible) {
+      this.hideChat();
+    } else {
+      this.showChat();
+    }
+  }
+
+  showChat() {
+    if (!this.chatPanel) {
+      this.createChatPanel();
+    }
+    
+    this.chatPanel.style.display = 'flex';
+    this.chatVisible = true;
+    this.updateChatDisplay();
+    console.log('Chat panel shown');
+  }
+
+  hideChat() {
+    if (this.chatPanel) {
+      this.chatPanel.style.display = 'none';
+    }
+    this.chatVisible = false;
+    console.log('Chat panel hidden');
+  }
+
+  createChatPanel() {
+    this.chatPanel = document.createElement('div');
+    this.chatPanel.className = 'chat-panel';
+    this.chatPanel.innerHTML = `
+      <div class="chat-header">
+        <span aria-label="聊天记录">💬 聊天记录</span>
+        <button class="chat-close-button" aria-label="关闭聊天">×</button>
+      </div>
+      <div class="chat-messages" id="chat-messages"></div>
+      <div class="chat-input-container">
+        <input type="text" class="chat-input" id="chat-input" placeholder="输入消息..." aria-label="聊天消息输入" />
+        <button class="chat-send-button" id="chat-send-button" aria-label="发送消息">发送</button>
+      </div>
+    `;
+    
+    // Apply current background mode to chat panel
+    if (this.backgroundMode === 'dark') {
+      this.chatPanel.classList.add('dark-mode');
+    } else if (this.backgroundMode === 'gradient') {
+      this.chatPanel.classList.add('gradient-mode');
+    } else if (this.backgroundMode === 'transparent') {
+      this.chatPanel.classList.add('transparent-mode');
+    }
+    
+    // Position chat panel next to the main display
+    document.body.appendChild(this.chatPanel);
+    
+    // Add event listeners
+    const closeButton = this.chatPanel.querySelector('.chat-close-button');
+    closeButton.addEventListener('click', () => this.hideChat());
+    
+    const sendButton = this.chatPanel.querySelector('.chat-send-button');
+    sendButton.addEventListener('click', () => this.sendChatMessage());
+    
+    const inputField = this.chatPanel.querySelector('.chat-input');
+    inputField.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        this.sendChatMessage();
+      }
+    });
+    
+    console.log('Chat panel created');
+  }
+
+  sendChatMessage() {
+    const inputField = this.chatPanel.querySelector('.chat-input');
+    const message = inputField.value.trim();
+    
+    if (message === '') return;
+    
+    // Get current video time if video is available
+    let timestamp = null;
+    if (this.currentVideo && !this.currentVideo.paused) {
+      timestamp = Math.floor(this.currentVideo.currentTime);
+    }
+    
+    const chatMessage = {
+      text: message,
+      timestamp: timestamp,
+      time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    };
+    
+    this.chatMessages.push(chatMessage);
+    this.updateChatDisplay();
+    this.saveChatMessages();
+    
+    inputField.value = '';
+    console.log('Chat message sent:', chatMessage);
+  }
+
+  updateChatDisplay() {
+    if (!this.chatPanel) return;
+    
+    const messagesContainer = this.chatPanel.querySelector('.chat-messages');
+    messagesContainer.innerHTML = '';
+    
+    this.chatMessages.forEach((msg, index) => {
+      const messageElement = document.createElement('div');
+      messageElement.className = 'chat-message';
+      
+      let timestampText = '';
+      if (msg.timestamp !== null) {
+        const minutes = Math.floor(msg.timestamp / 60);
+        const seconds = msg.timestamp % 60;
+        timestampText = `[${minutes}:${seconds.toString().padStart(2, '0')}] `;
+      }
+      
+      // Create time element
+      const timeElement = document.createElement('div');
+      timeElement.className = 'chat-message-time';
+      timeElement.textContent = msg.time;
+      
+      // Create text element with proper text content (not innerHTML) to prevent XSS
+      const textElement = document.createElement('div');
+      textElement.className = 'chat-message-text';
+      textElement.textContent = timestampText + msg.text;
+      
+      messageElement.appendChild(timeElement);
+      messageElement.appendChild(textElement);
+      messagesContainer.appendChild(messageElement);
+    });
+    
+    // Scroll to bottom
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
+
+  saveChatMessages() {
+    // Save to browser storage
+    try {
+      const key = `yoyo-chat-${window.location.hostname}`;
+      localStorage.setItem(key, JSON.stringify(this.chatMessages));
+      console.log('Chat messages saved');
+    } catch (e) {
+      console.error('Failed to save chat messages:', e);
+    }
+  }
+
+  loadChatMessages() {
+    // Load from browser storage
+    try {
+      const key = `yoyo-chat-${window.location.hostname}`;
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        this.chatMessages = JSON.parse(saved);
+        console.log('Chat messages loaded:', this.chatMessages.length);
+      }
+    } catch (e) {
+      console.error('Failed to load chat messages:', e);
+      this.chatMessages = [];
+    }
   }
 
   createPointsDisplay() {
@@ -1188,6 +1378,9 @@ class VideoPointsTracker {
       </div>
       <div class="reset-section">
         <button class="reset-button" id="reset-button">重置</button>
+      </div>
+      <div class="chat-section">
+        <button class="chat-button" id="chat-button">💬 聊天</button>
       </div>
     `;
     document.body.appendChild(this.pointsDisplay);
