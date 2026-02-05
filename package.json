@@ -1,0 +1,28 @@
+{
+  "name": "yoyo-clicker-extension",
+  "version": "1.0.0",
+  "description": "- 在页面有视频播放下，请将鼠标移至窗口内任意位置（除 **YoYo Clicker** 一栏及窗口百分比 **‘+’** **‘-’** 以及 **‘重置’** 功能按键外）。",
+  "main": "content.js",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Spidey-Shawn/YoYo-Clicker-Extension.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Spidey-Shawn/YoYo-Clicker-Extension/issues"
+  },
+  "homepage": "https://github.com/Spidey-Shawn/YoYo-Clicker-Extension#readme",
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "jest": "^30.2.0",
+    "jest-environment-jsdom": "^30.2.0"
+  }
+}

@@ -1562,12 +1562,20 @@ class VideoPointsTracker {
 
 console.log('YoYo Clicker: Script loaded');
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    console.log('YoYo Clicker: DOM loaded, initializing');
+// Export for testing purposes
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = VideoPointsTracker;
+}
+
+// Initialize only in browser environment
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('YoYo Clicker: DOM loaded, initializing');
+      new VideoPointsTracker();
+    });
+  } else {
+    console.log('YoYo Clicker: DOM ready, initializing');
     new VideoPointsTracker();
-  });
-} else {
-  console.log('YoYo Clicker: DOM ready, initializing');
-  new VideoPointsTracker();
+  }
 }
