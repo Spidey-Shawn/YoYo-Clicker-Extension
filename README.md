@@ -64,6 +64,33 @@ Works with all major video platforms:
 - Twitch
 - HTML5 video players
 
+## Development
+
+### Testing
+
+This project uses Jest for unit testing. To run tests:
+
+```bash
+# Install dependencies
+npm install
+
+# Run tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage report
+npm run test:coverage
+```
+
+The test suite includes:
+- Unit tests for core VideoPointsTracker functionality
+- Point management tests (add, subtract, reset)
+- Time-based background mode switching tests
+- Video detection tests
+- Zoom level detection tests
+
 ## Use Cases
 
 Perfect for:
