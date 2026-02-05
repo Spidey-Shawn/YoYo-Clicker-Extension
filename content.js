@@ -1206,13 +1206,13 @@ class VideoPointsTracker {
     this.chatPanel.className = 'chat-panel';
     this.chatPanel.innerHTML = `
       <div class="chat-header">
-        <span>💬 聊天记录</span>
-        <button class="chat-close-button">×</button>
+        <span aria-label="聊天记录">💬 聊天记录</span>
+        <button class="chat-close-button" aria-label="关闭聊天">×</button>
       </div>
       <div class="chat-messages" id="chat-messages"></div>
       <div class="chat-input-container">
-        <input type="text" class="chat-input" id="chat-input" placeholder="输入消息..." />
-        <button class="chat-send-button" id="chat-send-button">发送</button>
+        <input type="text" class="chat-input" id="chat-input" placeholder="输入消息..." aria-label="聊天消息输入" />
+        <button class="chat-send-button" id="chat-send-button" aria-label="发送消息">发送</button>
       </div>
     `;
     
