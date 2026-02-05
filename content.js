@@ -1562,6 +1562,11 @@ class VideoPointsTracker {
 
 console.log('YoYo Clicker: Script loaded');
 
+// Export for testing
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { VideoPointsTracker };
+}
+
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     console.log('YoYo Clicker: DOM loaded, initializing');

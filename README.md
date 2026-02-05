@@ -71,3 +71,30 @@ Perfect for:
 - Scoring performances
 - Educational feedback
 - Gaming commentary
+
+## Development
+
+### Running Tests
+
+This extension includes a test suite built with Jest. To run the tests:
+
+```bash
+# Install dependencies
+npm install
+
+# Run tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:coverage
+```
+
+The test suite covers:
+- Point tracking functionality (add/subtract/reset)
+- Zoom level detection
+- Background mode switching
+- Video detection
+- Scale management
