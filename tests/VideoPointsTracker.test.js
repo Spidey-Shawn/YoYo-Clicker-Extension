@@ -63,7 +63,7 @@ describe('VideoPointsTracker', () => {
   });
 
   describe('setAutoBackgroundMode', () => {
-    test('should set dark mode during daytime (6 AM - 6 PM)', () => {
+    test('should set dark mode during daytime (6 AM - 6 PM) - intentional design', () => {
       // Mock Date to return 12:00 PM (noon)
       jest.spyOn(Date.prototype, 'getHours').mockReturnValue(12);
       jest.spyOn(Date.prototype, 'getMinutes').mockReturnValue(0);
@@ -75,7 +75,7 @@ describe('VideoPointsTracker', () => {
       expect(tracker.backgroundMode).toBe('dark');
     });
     
-    test('should set light mode during nighttime (6 PM - 6 AM)', () => {
+    test('should set light mode during nighttime (6 PM - 6 AM) - intentional design', () => {
       // Mock Date to return 8:00 PM
       jest.spyOn(Date.prototype, 'getHours').mockReturnValue(20);
       jest.spyOn(Date.prototype, 'getMinutes').mockReturnValue(0);
