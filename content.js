@@ -1187,7 +1187,7 @@ class VideoPointsTracker {
       this.createChatPanel();
     }
     
-    this.chatPanel.style.display = 'block';
+    this.chatPanel.style.display = 'flex';
     this.chatVisible = true;
     this.updateChatDisplay();
     console.log('Chat panel shown');
@@ -1288,11 +1288,18 @@ class VideoPointsTracker {
         timestampText = `[${minutes}:${seconds.toString().padStart(2, '0')}] `;
       }
       
-      messageElement.innerHTML = `
-        <div class="chat-message-time">${msg.time}</div>
-        <div class="chat-message-text">${timestampText}${msg.text}</div>
-      `;
+      // Create time element
+      const timeElement = document.createElement('div');
+      timeElement.className = 'chat-message-time';
+      timeElement.textContent = msg.time;
       
+      // Create text element with proper text content (not innerHTML) to prevent XSS
+      const textElement = document.createElement('div');
+      textElement.className = 'chat-message-text';
+      textElement.textContent = timestampText + msg.text;
+      
+      messageElement.appendChild(timeElement);
+      messageElement.appendChild(textElement);
       messagesContainer.appendChild(messageElement);
     });
     
