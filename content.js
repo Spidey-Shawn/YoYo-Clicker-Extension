@@ -22,6 +22,9 @@ class VideoPointsTracker {
     this.gestureProcessingTimeout = null; // Timeout for gesture processing
     this.baseScale = 1.0; // User's manually set scale
     this.currentZoomLevel = this.detectZoomLevel(); // Current page zoom
+    this.chatPanel = null; // Chat panel element
+    this.chatVisible = false; // Chat visibility state
+    this.chatMessages = []; // Store chat messages
     
     this.init();
   }
@@ -1036,6 +1039,7 @@ class VideoPointsTracker {
       <div class="menu-item" data-action="background-gradient" style="font-size: 14px;">🔮  渐变模式</div>
       <div class="menu-item" data-action="background-transparent" style="font-size: 14px;">⚪️  通透模式</div>
       <div class="menu-separator"></div>
+      <div class="menu-item" data-action="toggle-chat" style="font-size: 14px;">💬  聊天记录</div>
       <div class="menu-item" data-action="about" style="font-size: 15px;">🪀  关于</div>
     `;
     
@@ -1073,6 +1077,9 @@ class VideoPointsTracker {
         break;
       case 'background-transparent':
         this.setBackgroundMode('transparent');
+        break;
+      case 'toggle-chat':
+        this.toggleChat();
         break;
       case 'about':
         this.showAbout();
@@ -1141,6 +1148,9 @@ class VideoPointsTracker {
         this.menuDropdown.classList.add('transparent-mode');
       }
     }
+    
+    // Update chat panel if it exists
+    this.updateChatPanelMode();
   }
 
   createPointsDisplay() {
@@ -1556,6 +1566,166 @@ class VideoPointsTracker {
         isDragging = false;
         dragHandle.style.cursor = 'grab';
       }
+    });
+  }
+
+  toggleChat() {
+    if (!this.chatPanel) {
+      this.createChatPanel();
+    }
+    
+    this.chatVisible = !this.chatVisible;
+    
+    if (this.chatVisible) {
+      this.chatPanel.style.display = 'flex';
+      this.loadChatMessages();
+      console.log('YoYo Clicker: Chat panel opened');
+    } else {
+      this.chatPanel.style.display = 'none';
+      console.log('YoYo Clicker: Chat panel closed');
+    }
+  }
+
+  createChatPanel() {
+    this.chatPanel = document.createElement('div');
+    this.chatPanel.id = 'yoyo-chat-panel';
+    this.chatPanel.className = 'chat-panel';
+    
+    this.chatPanel.innerHTML = `
+      <div class="chat-header">
+        <span class="chat-title">💬 聊天记录</span>
+        <button class="chat-close-button" id="chat-close-button">×</button>
+      </div>
+      <div class="chat-messages" id="chat-messages"></div>
+      <div class="chat-input-container">
+        <input type="text" class="chat-input" id="chat-input" placeholder="输入消息..." />
+        <button class="chat-send-button" id="chat-send-button">发送</button>
+        <button class="chat-clear-button" id="chat-clear-button">清空</button>
+      </div>
+    `;
+    
+    document.body.appendChild(this.chatPanel);
+    
+    // Apply background mode
+    this.updateChatPanelMode();
+    
+    // Add event listeners
+    const closeButton = this.chatPanel.querySelector('#chat-close-button');
+    const sendButton = this.chatPanel.querySelector('#chat-send-button');
+    const clearButton = this.chatPanel.querySelector('#chat-clear-button');
+    const inputField = this.chatPanel.querySelector('#chat-input');
+    
+    closeButton.addEventListener('click', () => this.toggleChat());
+    sendButton.addEventListener('click', () => this.sendMessage());
+    clearButton.addEventListener('click', () => this.clearChat());
+    
+    inputField.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        this.sendMessage();
+      }
+    });
+    
+    console.log('YoYo Clicker: Chat panel created');
+  }
+
+  updateChatPanelMode() {
+    if (this.chatPanel) {
+      this.chatPanel.classList.remove('dark-mode', 'gradient-mode', 'transparent-mode');
+      
+      if (this.backgroundMode === 'dark') {
+        this.chatPanel.classList.add('dark-mode');
+      } else if (this.backgroundMode === 'gradient') {
+        this.chatPanel.classList.add('gradient-mode');
+      } else if (this.backgroundMode === 'transparent') {
+        this.chatPanel.classList.add('transparent-mode');
+      }
+    }
+  }
+
+  getChatStorageKey() {
+    return `chat_${window.location.hostname}`;
+  }
+
+  formatTimestamp(isoDate) {
+    const date = new Date(isoDate);
+    return date.toLocaleTimeString('zh-CN', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  }
+
+  sendMessage() {
+    const inputField = this.chatPanel.querySelector('#chat-input');
+    const message = inputField.value.trim();
+    
+    if (!message) return;
+    
+    const chatMessage = {
+      text: message,
+      date: new Date().toISOString()
+    };
+    
+    this.chatMessages.push(chatMessage);
+    this.saveChatMessages();
+    this.displayMessage(chatMessage);
+    
+    inputField.value = '';
+    console.log('YoYo Clicker: Message sent:', message);
+  }
+
+  displayMessage(message) {
+    const messagesContainer = this.chatPanel.querySelector('#chat-messages');
+    const messageElement = document.createElement('div');
+    messageElement.className = 'chat-message';
+    
+    const timestamp = this.formatTimestamp(message.date);
+    
+    messageElement.innerHTML = `
+      <span class="message-time">${timestamp}</span>
+      <span class="message-text">${this.escapeHtml(message.text)}</span>
+    `;
+    
+    messagesContainer.appendChild(messageElement);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
+
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  clearChat() {
+    this.chatMessages = [];
+    this.saveChatMessages();
+    
+    const messagesContainer = this.chatPanel.querySelector('#chat-messages');
+    messagesContainer.innerHTML = '';
+    
+    console.log('YoYo Clicker: Chat cleared');
+  }
+
+  loadChatMessages() {
+    const storageKey = this.getChatStorageKey();
+    chrome.storage.local.get([storageKey], (result) => {
+      const messages = result[storageKey] || [];
+      this.chatMessages = messages;
+      
+      const messagesContainer = this.chatPanel.querySelector('#chat-messages');
+      messagesContainer.innerHTML = '';
+      
+      messages.forEach(message => {
+        this.displayMessage(message);
+      });
+      
+      console.log('YoYo Clicker: Loaded', messages.length, 'chat messages');
+    });
+  }
+
+  saveChatMessages() {
+    const storageKey = this.getChatStorageKey();
+    chrome.storage.local.set({ [storageKey]: this.chatMessages }, () => {
+      console.log('YoYo Clicker: Chat messages saved');
     });
   }
 }

@@ -37,6 +37,14 @@ A browser extension with a glassmorphism UI that allows you to track points whil
 - Green for positive points, red for negative points
 - Points persist per website
 
+### Chat Feature
+- **Chat panel**: Leave comments and notes while watching videos
+- **Access chat**: Click the menu button (☰) and select "聊天记录" (Chat)
+- **Send messages**: Type your message and press Enter or click Send
+- **Timestamps**: Each message is automatically timestamped
+- **Persistent storage**: Chat messages are saved per website
+- **Clear history**: Use the Clear button to remove all messages
+
 ## Installation
 
 For Chrome/Edge:
@@ -71,3 +79,5 @@ Perfect for:
 - Scoring performances
 - Educational feedback
 - Gaming commentary
+- Taking notes and leaving comments on videos
+- Collaborative viewing sessions
