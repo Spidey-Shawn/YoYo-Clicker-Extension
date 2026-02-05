@@ -1577,7 +1577,7 @@ class VideoPointsTracker {
     this.chatVisible = !this.chatVisible;
     
     if (this.chatVisible) {
-      this.chatPanel.style.display = 'block';
+      this.chatPanel.style.display = 'flex';
       this.loadChatMessages();
       console.log('YoYo Clicker: Chat panel opened');
     } else {
