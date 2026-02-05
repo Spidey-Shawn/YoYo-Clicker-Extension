@@ -1642,20 +1642,26 @@ class VideoPointsTracker {
     }
   }
 
+  getChatStorageKey() {
+    return `chat_${window.location.hostname}`;
+  }
+
+  formatTimestamp(isoDate) {
+    const date = new Date(isoDate);
+    return date.toLocaleTimeString('zh-CN', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  }
+
   sendMessage() {
     const inputField = this.chatPanel.querySelector('#chat-input');
     const message = inputField.value.trim();
     
     if (!message) return;
     
-    const timestamp = new Date().toLocaleTimeString('zh-CN', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-    
     const chatMessage = {
       text: message,
-      timestamp: timestamp,
       date: new Date().toISOString()
     };
     
@@ -1672,8 +1678,10 @@ class VideoPointsTracker {
     const messageElement = document.createElement('div');
     messageElement.className = 'chat-message';
     
+    const timestamp = this.formatTimestamp(message.date);
+    
     messageElement.innerHTML = `
-      <span class="message-time">${message.timestamp}</span>
+      <span class="message-time">${timestamp}</span>
       <span class="message-text">${this.escapeHtml(message.text)}</span>
     `;
     
@@ -1698,9 +1706,9 @@ class VideoPointsTracker {
   }
 
   loadChatMessages() {
-    const siteKey = window.location.hostname;
-    chrome.storage.local.get([`chat_${siteKey}`], (result) => {
-      const messages = result[`chat_${siteKey}`] || [];
+    const storageKey = this.getChatStorageKey();
+    chrome.storage.local.get([storageKey], (result) => {
+      const messages = result[storageKey] || [];
       this.chatMessages = messages;
       
       const messagesContainer = this.chatPanel.querySelector('#chat-messages');
@@ -1715,8 +1723,8 @@ class VideoPointsTracker {
   }
 
   saveChatMessages() {
-    const siteKey = window.location.hostname;
-    chrome.storage.local.set({ [`chat_${siteKey}`]: this.chatMessages }, () => {
+    const storageKey = this.getChatStorageKey();
+    chrome.storage.local.set({ [storageKey]: this.chatMessages }, () => {
       console.log('YoYo Clicker: Chat messages saved');
     });
   }
